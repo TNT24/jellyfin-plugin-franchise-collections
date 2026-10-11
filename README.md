@@ -12,13 +12,14 @@ using the franchise ("collection") data that Jellyfin's built-in TMDb metadata p
 
 ## How it works
 
-- Movies are grouped by their TMDb collection ID. Once you own at least *N* movies from a franchise (default 2), a collection is created, and Jellyfin then fetches its poster and overview from TMDb.
+- Movies are grouped by their TMDb collection ID. You can limit this to particular libraries in the settings; by default every library is used. Collections themselves are server-wide. Once you own at least *N* movies from a franchise (default 2), a collection is created, and Jellyfin then fetches its poster and overview from TMDb.
 - Existing collections are reused instead of duplicated: first by TMDb ID, then by an exact name match (that also covers collections made by Jellyfin's own "Automatically add to collection" library option).
 - Updates happen:
   - about 2 minutes after movies are added or their metadata changes, so a whole library scan triggers one sync, and
   - daily at 4 AM (**Dashboard → Scheduled Tasks → Library → Sync franchise collections**), and
   - whenever you click **Sync now** on the plugin's settings page.
 - Movies you added to a collection by hand are never removed. With "Remove stale movies" turned on, a movie is removed only when TMDb now lists it under a *different* franchise.
+- **Sync and override** on the settings page makes every franchise collection match TMDb exactly, once. It removes anything you added by hand (including movies from libraries you haven't ticked) and takes over a collection that has a franchise's name but a different or stale TMDb ID. Collections that aren't franchises, and excluded franchises, are never touched.
 
 ## Build
 
@@ -43,12 +44,12 @@ The zips are written to `artifacts\`.
 ### Manually
 
 1. Stop Jellyfin.
-2. Copy the ready-made folder for your server version, `artifacts\jellyfin-12\Franchise Collections_1.0.0.0`
-   or `artifacts\jellyfin-10.11\Franchise Collections_1.0.0.0`, into the server's plugin directory:
+2. Copy the ready-made folder for your server version, `artifacts\jellyfin-12\Franchise Collections_1.0.0.1`
+   or `artifacts\jellyfin-10.11\Franchise Collections_1.0.0.1`, into the server's plugin directory:
    - Windows: `%ProgramData%\Jellyfin\Server\plugins`
    - Linux: `/var/lib/jellyfin/plugins`
    - Docker: `/config/plugins`
-3. (Or create a `Franchise Collections_1.0.0.0` folder there yourself and extract the matching zip into it.)
+3. (Or create a `Franchise Collections_1.0.0.1` folder there yourself and extract the matching zip into it.)
 4. Start Jellyfin. Go to **Dashboard → Plugins → Franchise Collections** to change settings, then click **Sync now**.
 
 Your movie libraries must use the TMDb metadata downloader (the default). If a movie isn't being picked up, refresh its metadata

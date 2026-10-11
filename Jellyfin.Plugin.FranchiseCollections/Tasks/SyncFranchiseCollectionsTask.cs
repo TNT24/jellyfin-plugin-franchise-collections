@@ -37,7 +37,7 @@ public class SyncFranchiseCollectionsTask : IScheduledTask
 
     /// <inheritdoc />
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
-        => _service.SyncAsync(progress, cancellationToken);
+        => _service.SyncAsync(false, progress, cancellationToken);
 
     /// <inheritdoc />
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()

@@ -2,8 +2,8 @@
 # and updates manifest.json (the plugin repository manifest).
 $ErrorActionPreference = 'Stop'
 
-$version = '1.0.0.0'
-$changelog = 'Initial release'
+$version = '1.0.0.1'
+$changelog = 'Choose which libraries to use. New "Sync and override" button makes franchise collections match TMDb exactly. Logo.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'

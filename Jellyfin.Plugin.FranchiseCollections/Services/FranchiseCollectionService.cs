@@ -46,10 +46,14 @@ public class FranchiseCollectionService
     /// <summary>
     /// Creates missing franchise collections and updates existing ones.
     /// </summary>
+    /// <param name="overrideManualChanges">
+    /// Make each franchise collection match TMDb exactly: remove every member that isn't one of the franchise's movies,
+    /// and take over a same-named collection whose TMDb id doesn't belong to any franchise in the library.
+    /// </param>
     /// <param name="progress">Progress reporter (0-100).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the sync.</returns>
-    public async Task SyncAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    public async Task SyncAsync(bool overrideManualChanges, IProgress<double> progress, CancellationToken cancellationToken)
     {
         if (!await _syncLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
@@ -59,7 +63,7 @@ public class FranchiseCollectionService
 
         try
         {
-            await SyncInternalAsync(progress, cancellationToken).ConfigureAwait(false);
+            await SyncInternalAsync(overrideManualChanges, progress, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -67,11 +71,12 @@ public class FranchiseCollectionService
         }
     }
 
-    private async Task SyncInternalAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    private async Task SyncInternalAsync(bool overrideManualChanges, IProgress<double> progress, CancellationToken cancellationToken)
     {
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
         var minimumMovies = Math.Max(1, config.MinimumMovies);
         var excluded = ParseExcluded(config.ExcludedFranchises);
+        var libraryIds = ParseLibraryIds(config.LibraryIds);
 
         var franchises = _libraryManager.GetItemList(new InternalItemsQuery
             {
@@ -80,10 +85,13 @@ public class FranchiseCollectionService
                 IsVirtualItem = false
             })
             .OfType<Movie>()
+            .Where(movie => libraryIds.Count == 0
+                || _libraryManager.GetCollectionFolders(movie).Any(library => libraryIds.Contains(library.Id)))
             .Select(movie => (Movie: movie, TmdbId: movie.GetProviderId(TmdbCollectionKey)))
             .Where(x => !string.IsNullOrWhiteSpace(x.TmdbId))
             .GroupBy(x => x.TmdbId!, x => x.Movie, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var franchiseIds = franchises.Select(f => f.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var existingCollections = _libraryManager.GetItemList(new InternalItemsQuery
             {
@@ -109,7 +117,10 @@ public class FranchiseCollectionService
             }
         }
 
-        _logger.LogInformation("Found {Count} franchises across the movie library", franchises.Count);
+        _logger.LogInformation(
+            "Found {Count} franchises across the movie library{Mode}",
+            franchises.Count,
+            overrideManualChanges ? ", overriding manual changes" : string.Empty);
 
         int created = 0, updated = 0;
         for (var i = 0; i < franchises.Count; i++)
@@ -129,11 +140,15 @@ public class FranchiseCollectionService
                 // one the user (or Jellyfin's built-in auto-collection option) already made.
                 if (!collectionsByTmdbId.TryGetValue(tmdbId, out var collection)
                     && name is not null
-                    && collectionsByName.TryGetValue(name, out collection)
-                    && !string.IsNullOrWhiteSpace(collection.GetProviderId(TmdbCollectionKey)))
+                    && collectionsByName.TryGetValue(name, out collection))
                 {
-                    // Same name but a different franchise id; leave it alone.
-                    collection = null;
+                    // Same name but a different franchise id: leave it alone, unless overriding and no franchise
+                    // in the library owns that id (then it's a hand-made or mis-tagged collection we can take over).
+                    var otherId = collection.GetProviderId(TmdbCollectionKey);
+                    if (!string.IsNullOrWhiteSpace(otherId) && (!overrideManualChanges || franchiseIds.Contains(otherId)))
+                    {
+                        collection = null;
+                    }
                 }
 
                 var displayName = collection?.Name ?? name ?? string.Empty;
@@ -160,7 +175,7 @@ public class FranchiseCollectionService
                     collectionsByName.TryAdd(createName, newCollection);
                     created++;
                 }
-                else if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies).ConfigureAwait(false))
+                else if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges).ConfigureAwait(false))
                 {
                     updated++;
                 }
@@ -192,19 +207,27 @@ public class FranchiseCollectionService
         }).ConfigureAwait(false);
     }
 
-    private async Task<bool> UpdateCollectionAsync(BoxSet collection, string tmdbId, IReadOnlyList<Movie> movies, bool removeStale)
+    private async Task<bool> UpdateCollectionAsync(
+        BoxSet collection,
+        string tmdbId,
+        IReadOnlyList<Movie> movies,
+        bool removeStale,
+        bool overrideManualChanges)
     {
         var members = collection.GetLinkedChildrenInfos()
             .Select(info => info.Item2)
             .Where(item => item is not null)
             .ToList();
         var memberIds = members.Select(item => item.Id).ToHashSet();
+        var movieIds = movies.Select(m => m.Id).ToHashSet();
 
         var toAdd = movies.Where(m => !memberIds.Contains(m.Id)).Select(m => m.Id).ToList();
 
-        // Only remove movies that TMDb now places in a *different* franchise, so hand-added extras
-        // (spin-offs, specials without TMDb collection data) are left untouched.
-        var toRemove = removeStale
+        // Normally only remove movies that TMDb now places in a *different* franchise, so hand-added extras
+        // (spin-offs, specials without TMDb collection data) are left untouched. Overriding removes them too.
+        var toRemove = overrideManualChanges
+            ? members.Where(item => !movieIds.Contains(item.Id)).Select(item => item.Id).ToList()
+            : removeStale
             ? members
                 .OfType<Movie>()
                 .Where(m =>
@@ -228,14 +251,22 @@ public class FranchiseCollectionService
             await _collectionManager.RemoveFromCollectionAsync(collection.Id, toRemove).ConfigureAwait(false);
         }
 
-        // Tag a name-matched collection with the TMDb id so future syncs match it directly.
-        if (string.IsNullOrWhiteSpace(collection.GetProviderId(TmdbCollectionKey)))
+        // Tag a name-matched (or taken-over) collection with the TMDb id so future syncs match it directly.
+        if (!string.Equals(collection.GetProviderId(TmdbCollectionKey), tmdbId, StringComparison.OrdinalIgnoreCase))
         {
             collection.SetProviderId(TmdbCollectionKey, tmdbId);
             await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None).ConfigureAwait(false);
         }
 
         return toAdd.Count > 0 || toRemove.Count > 0;
+    }
+
+    private static HashSet<Guid> ParseLibraryIds(string[]? ids)
+    {
+        return (ids ?? [])
+            .Select(id => Guid.TryParse(id, out var guid) ? guid : Guid.Empty)
+            .Where(guid => guid != Guid.Empty)
+            .ToHashSet();
     }
 
     private static HashSet<string> ParseExcluded(string? value)

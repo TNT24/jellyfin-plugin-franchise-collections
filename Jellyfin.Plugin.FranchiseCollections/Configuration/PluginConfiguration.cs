@@ -13,6 +13,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MinimumMovies { get; set; } = 2;
 
     /// <summary>
+    /// Gets or sets the ids of the libraries whose movies are used. Empty means every library.
+    /// </summary>
+    public string[] LibraryIds { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets a value indicating whether collections are re-synced shortly after movies are added or updated.
     /// </summary>
     public bool UpdateOnLibraryChange { get; set; } = true;

@@ -11,6 +11,7 @@ Notes for working on the Franchise Collections plugin. For what it does and how 
 | `Services/FranchiseCollectionService.cs` | The sync logic. Everything that reads or changes collections lives here. |
 | `Services/LibraryChangeListener.cs` | Listens for movie add/update events and queues the scheduled task after a quiet period. |
 | `Tasks/SyncFranchiseCollectionsTask.cs` | Scheduled task (daily, 4 AM). Jellyfin finds `IScheduledTask` implementations in plugin assemblies on its own, so it isn't registered anywhere. |
+| `Tasks/OverrideFranchiseCollectionsTask.cs` | On-demand override sync with no triggers, started by the "Sync and override" button. |
 | `Configuration/PluginConfiguration.cs` | Settings, saved as XML by Jellyfin. |
 | `Configuration/configPage.html` | Settings page, embedded in the DLL. |
 | `package.ps1` | Builds both targets and produces drop-in folders and zips in `artifacts/`. |
@@ -18,13 +19,14 @@ Notes for working on the Franchise Collections plugin. For what it does and how 
 
 ## How a sync works
 
-1. Load every non-virtual `Movie` and group them by the `TmdbCollection` provider ID. Jellyfin's TMDb provider sets that ID and `Movie.CollectionName` from TMDb's `belongs_to_collection`.
+1. Load every non-virtual `Movie`, keep those in the selected libraries (`LibraryIds`, empty means all, checked with `ILibraryManager.GetCollectionFolders`), and group them by the `TmdbCollection` provider ID. Jellyfin's TMDb provider sets that ID and `Movie.CollectionName` from TMDb's `belongs_to_collection`.
 2. Load every `BoxSet` and index it by its TMDb collection ID and by its name.
 3. For each franchise:
    - **Find the collection:** match by TMDb ID first. Failing that, match by exact name, but only if that collection has no TMDb ID of its own. A name-matched collection gets tagged with the ID so later syncs match it by ID.
    - **Skip it** if the TMDb name or the existing collection's name is in the excluded list.
    - **No collection yet, and at least `MinimumMovies` movies:** create one through `ICollectionManager.CreateCollectionAsync` with the TMDb ID set, so Jellyfin downloads the poster and overview.
    - **Collection exists:** add movies that are missing from it. If `RemoveStaleMovies` is on, remove members whose TMDb ID now points to a *different* franchise. Members with no TMDb ID are treated as hand-added and left alone.
+   - **Override mode** (`OverrideFranchiseCollectionsTask`, the "Sync and override" button): a name match also takes over a collection whose TMDb ID belongs to no franchise in the (selected) library, and re-tags it. Every member that isn't one of the franchise's movies is removed.
 4. Errors are logged and the sync moves on to the next franchise. A `SemaphoreSlim` stops two syncs from running at once.
 
 **Change-triggered syncs:** `LibraryChangeListener` waits until no movie has changed for 2 minutes, but never more than 15 minutes after the first change, then calls `ITaskManager.QueueScheduledTask`. Going through the task manager makes the run show up in the dashboard with progress. It reacts only to `Movie` events, which is why its own collection edits can't re-trigger it.
@@ -95,6 +97,8 @@ There are no automated tests yet, and **the plugin hasn't been run against a rea
 4. Hand-add an unrelated movie to a franchise collection and sync again. It should stay.
 5. Add a franchise to the excluded list and sync. Its collection shouldn't change.
 6. Run **Sync now** twice quickly. The second run should log `already running, skipping`.
+7. Tick one library only and sync. Franchises only in other libraries shouldn't get collections.
+8. Hand-add a movie to a franchise collection, and make a hand-built collection named like a franchise but tagged with an unrelated TMDb ID. Click **Sync and override**: the extra movie is removed and the hand-built collection is reused instead of a "Name (id)" duplicate.
 
 The plugin's log lines come from `Jellyfin.Plugin.FranchiseCollections.Services.*`.
 

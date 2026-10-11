@@ -16,6 +16,11 @@
                         <input is="emby-input" type="number" id="MinimumMovies" min="1" required label="Minimum movies per collection" />
                         <div class="fieldDescription">Only create a collection once you own at least this many movies from the franchise.</div>
                     </div>
+                    <div class="verticalSection">
+                        <h3 class="checkboxListLabel">Libraries</h3>
+                        <div id="Libraries" class="checkboxList paperList checkboxList-paperList"></div>
+                        <div class="fieldDescription">Only movies in the ticked libraries are grouped into collections. Leave all unticked to use every library.</div>
+                    </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input is="emby-checkbox" type="checkbox" id="UpdateOnLibraryChange" />
@@ -41,6 +46,12 @@
                         <button is="emby-button" type="button" id="RunNow" class="raised block emby-button">
                             <span>Sync now</span>
                         </button>
+                        <button is="emby-button" type="button" id="RunOverride" class="raised block emby-button">
+                            <span>Sync and override</span>
+                        </button>
+                        <div class="fieldDescription">Makes every franchise collection match TMDb exactly. Movies and other items you added by hand
+                            are removed, and a collection with the same name as a franchise is taken over. Collections that aren't
+                            franchises and excluded franchises are not touched.</div>
                     </div>
                 </form>
             </div>
@@ -48,13 +59,51 @@
         <script type="text/javascript">
             var FranchiseCollectionsConfig = {
                 pluginUniqueId: '7c1f3c2e-5b8a-4d3e-9f61-2a4b8e0d9c17',
-                taskKey: 'FranchiseCollectionsSync'
+                taskKey: 'FranchiseCollectionsSync',
+                overrideTaskKey: 'FranchiseCollectionsOverride'
             };
+
+            // Lists movie and mixed-content libraries; ids are compared without dashes and case-insensitively.
+            function renderLibraries(folders, selectedIds) {
+                var normalize = function (id) { return (id || '').replace(/-/g, '').toLowerCase(); };
+                var selected = selectedIds.map(normalize);
+                var escape = function (text) {
+                    var div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                };
+                document.querySelector('#Libraries').innerHTML = folders
+                    .filter(function (f) { return !f.CollectionType || f.CollectionType === 'movies' || f.CollectionType === 'mixed'; })
+                    .map(function (f) {
+                        var checked = selected.indexOf(normalize(f.ItemId)) !== -1 ? ' checked' : '';
+                        return '<label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" data-id="'
+                            + escape(f.ItemId) + '"' + checked + ' /><span>' + escape(f.Name) + '</span></label>';
+                    })
+                    .join('') || '<div>No movie libraries found.</div>';
+            }
+
+            function startFranchiseTask(key, startedMessage) {
+                ApiClient.getScheduledTasks().then(function (tasks) {
+                    var task = tasks.filter(function (t) { return t.Key === key; })[0];
+                    if (!task) {
+                        Dashboard.alert('Sync task not found. Try restarting the server.');
+                        return;
+                    }
+                    ApiClient.startScheduledTask(task.Id).then(function () {
+                        Dashboard.alert(startedMessage);
+                    });
+                });
+            }
 
             document.querySelector('#FranchiseCollectionsConfigPage')
                 .addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
-                    ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId).then(function (config) {
+                    Promise.all([
+                        ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId),
+                        ApiClient.getVirtualFolders()
+                    ]).then(function (results) {
+                        var config = results[0];
+                        renderLibraries(results[1], config.LibraryIds || []);
                         document.querySelector('#MinimumMovies').value = config.MinimumMovies;
                         document.querySelector('#UpdateOnLibraryChange').checked = config.UpdateOnLibraryChange;
                         document.querySelector('#RemoveStaleMovies').checked = config.RemoveStaleMovies;
@@ -69,6 +118,9 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId).then(function (config) {
                         config.MinimumMovies = parseInt(document.querySelector('#MinimumMovies').value, 10) || 2;
+                        config.LibraryIds = Array.prototype.map.call(
+                            document.querySelectorAll('#Libraries input:checked'),
+                            function (input) { return input.getAttribute('data-id'); });
                         config.UpdateOnLibraryChange = document.querySelector('#UpdateOnLibraryChange').checked;
                         config.RemoveStaleMovies = document.querySelector('#RemoveStaleMovies').checked;
                         config.ExcludedFranchises = document.querySelector('#ExcludedFranchises').value;
@@ -81,16 +133,17 @@
 
             document.querySelector('#RunNow')
                 .addEventListener('click', function () {
-                    ApiClient.getScheduledTasks().then(function (tasks) {
-                        var task = tasks.filter(function (t) { return t.Key === FranchiseCollectionsConfig.taskKey; })[0];
-                        if (!task) {
-                            Dashboard.alert('Sync task not found. Try restarting the server.');
-                            return;
-                        }
-                        ApiClient.startScheduledTask(task.Id).then(function () {
-                            Dashboard.alert('Franchise collection sync started. Check Scheduled Tasks for progress.');
-                        });
-                    });
+                    startFranchiseTask(FranchiseCollectionsConfig.taskKey,
+                        'Franchise collection sync started. Check Scheduled Tasks for progress.');
+                });
+
+            document.querySelector('#RunOverride')
+                .addEventListener('click', function () {
+                    if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed.')) {
+                        return;
+                    }
+                    startFranchiseTask(FranchiseCollectionsConfig.overrideTaskKey,
+                        'Franchise collection override started. Check Scheduled Tasks for progress.');
                 });
         </script>
     </div>
