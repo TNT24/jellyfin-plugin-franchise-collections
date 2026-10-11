@@ -1,0 +1,29 @@
+[
+    {
+        "guid":  "7c1f3c2e-5b8a-4d3e-9f61-2a4b8e0d9c17",
+        "name":  "Franchise Collections",
+        "description":  "Automatically creates and updates collections for movie franchises using TMDb collection data.",
+        "overview":  "Automatic movie franchise collections",
+        "owner":  "TNT24",
+        "category":  "Metadata",
+        "imageUrl":  "",
+        "versions":  [
+                         {
+                             "version":  "1.0.0.0",
+                             "changelog":  "Initial release",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.0.0/franchise-collections_1.0.0.0_jellyfin-12.zip",
+                             "checksum":  "0a66b3962ecd242ebec287d09b4b5baf",
+                             "timestamp":  "2026-10-11T10:06:22Z"
+                         },
+                         {
+                             "version":  "1.0.0.0",
+                             "changelog":  "Initial release",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.0.0/franchise-collections_1.0.0.0_jellyfin-10.11.zip",
+                             "checksum":  "68d31249ff170ba0f6dc2d0d3d1b2885",
+                             "timestamp":  "2026-10-11T10:06:22Z"
+                         }
+                     ]
+    }
+]

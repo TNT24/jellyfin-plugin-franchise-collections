@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Franchise Collections</title>
+</head>
+<body>
+    <div id="FranchiseCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-textarea">
+        <div data-role="content">
+            <div class="content-primary">
+                <h2 class="sectionTitle">Franchise Collections</h2>
+                <p>Groups movies into collections using the franchise data TMDb provides (e.g. "The Matrix Collection", "Shrek Collection").
+                   Movies need TMDb metadata for this to work.</p>
+                <form id="FranchiseCollectionsConfigForm">
+                    <div class="inputContainer">
+                        <input is="emby-input" type="number" id="MinimumMovies" min="1" required label="Minimum movies per collection" />
+                        <div class="fieldDescription">Only create a collection once you own at least this many movies from the franchise.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input is="emby-checkbox" type="checkbox" id="UpdateOnLibraryChange" />
+                            <span>Update automatically when movies are added</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Runs a sync a couple of minutes after the library changes. A daily sync also runs from Scheduled Tasks.</div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input is="emby-checkbox" type="checkbox" id="RemoveStaleMovies" />
+                            <span>Remove movies that TMDb moves to a different franchise</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Movies you added to a collection by hand are never removed.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <textarea is="emby-textarea" id="ExcludedFranchises" rows="5" label="Excluded franchises"></textarea>
+                        <div class="fieldDescription">One collection name per line, e.g. "James Bond Collection". These are never created or changed.</div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                        <button is="emby-button" type="button" id="RunNow" class="raised block emby-button">
+                            <span>Sync now</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var FranchiseCollectionsConfig = {
+                pluginUniqueId: '7c1f3c2e-5b8a-4d3e-9f61-2a4b8e0d9c17',
+                taskKey: 'FranchiseCollectionsSync'
+            };
+
+            document.querySelector('#FranchiseCollectionsConfigPage')
+                .addEventListener('pageshow', function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId).then(function (config) {
+                        document.querySelector('#MinimumMovies').value = config.MinimumMovies;
+                        document.querySelector('#UpdateOnLibraryChange').checked = config.UpdateOnLibraryChange;
+                        document.querySelector('#RemoveStaleMovies').checked = config.RemoveStaleMovies;
+                        document.querySelector('#ExcludedFranchises').value = config.ExcludedFranchises || '';
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector('#FranchiseCollectionsConfigForm')
+                .addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId).then(function (config) {
+                        config.MinimumMovies = parseInt(document.querySelector('#MinimumMovies').value, 10) || 2;
+                        config.UpdateOnLibraryChange = document.querySelector('#UpdateOnLibraryChange').checked;
+                        config.RemoveStaleMovies = document.querySelector('#RemoveStaleMovies').checked;
+                        config.ExcludedFranchises = document.querySelector('#ExcludedFranchises').value;
+                        ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                    return false;
+                });
+
+            document.querySelector('#RunNow')
+                .addEventListener('click', function () {
+                    ApiClient.getScheduledTasks().then(function (tasks) {
+                        var task = tasks.filter(function (t) { return t.Key === FranchiseCollectionsConfig.taskKey; })[0];
+                        if (!task) {
+                            Dashboard.alert('Sync task not found. Try restarting the server.');
+                            return;
+                        }
+                        ApiClient.startScheduledTask(task.Id).then(function () {
+                            Dashboard.alert('Franchise collection sync started. Check Scheduled Tasks for progress.');
+                        });
+                    });
+                });
+        </script>
+    </div>
+</body>
+</html>
