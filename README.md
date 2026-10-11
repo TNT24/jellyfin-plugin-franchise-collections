@@ -1,4 +1,5 @@
 # Franchise Collections for Jellyfin
+n![Franchise Collections](images/logo.png)
 
 Automatically creates and maintains movie franchise collections, e.g. *The Matrix Collection* or *Shrek Collection*,
 using the franchise ("collection") data that Jellyfin's built-in TMDb metadata provider already stores on each movie.

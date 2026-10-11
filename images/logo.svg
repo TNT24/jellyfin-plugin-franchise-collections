@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1035"/>
+      <stop offset="1" stop-color="#0b2a44"/>
+    </linearGradient>
+    <linearGradient id="jf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#aa5cc3"/>
+      <stop offset="1" stop-color="#00a4dc"/>
+    </linearGradient>
+    <linearGradient id="poster" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f45"/>
+      <stop offset="1" stop-color="#171a28"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <circle cx="225" cy="225" r="190" fill="url(#jf)" opacity="0.18"/>
+
+  <!-- Fanned stack of three movie posters: one franchise -->
+  <g transform="translate(225 240)">
+    <g transform="translate(-78 14) rotate(-15) translate(-62 -95)" filter="url(#shadow)">
+      <rect width="124" height="180" rx="10" fill="url(#poster)" stroke="#aa5cc3" stroke-width="4"/>
+      <text x="30" y="112" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#aa5cc3" opacity="0.9">1</text>
+    </g>
+    <g transform="translate(78 14) rotate(15) translate(-62 -95)" filter="url(#shadow)">
+      <rect width="124" height="180" rx="10" fill="url(#poster)" stroke="#00a4dc" stroke-width="4"/>
+      <text x="94" y="112" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#00a4dc" opacity="0.9">3</text>
+    </g>
+    <g transform="translate(-68 -112)" filter="url(#shadow)">
+      <rect width="136" height="198" rx="11" fill="url(#poster)" stroke="url(#jf)" stroke-width="5"/>
+      <!-- film-strip perforations -->
+      <g fill="#ffffff" opacity="0.18">
+        <rect x="12" y="14" width="14" height="9" rx="2"/><rect x="38" y="14" width="14" height="9" rx="2"/>
+        <rect x="64" y="14" width="14" height="9" rx="2"/><rect x="90" y="14" width="14" height="9" rx="2"/>
+        <rect x="116" y="14" width="10" height="9" rx="2"/>
+        <rect x="12" y="175" width="14" height="9" rx="2"/><rect x="38" y="175" width="14" height="9" rx="2"/>
+        <rect x="64" y="175" width="14" height="9" rx="2"/><rect x="90" y="175" width="14" height="9" rx="2"/>
+        <rect x="116" y="175" width="10" height="9" rx="2"/>
+      </g>
+      <text x="68" y="124" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="700" fill="url(#jf)">2</text>
+    </g>
+  </g>
+
+  <text x="430" y="205" font-family="Segoe UI, Arial, sans-serif" font-size="58" font-weight="700" fill="#ffffff">Franchise</text>
+  <text x="430" y="268" font-family="Segoe UI, Arial, sans-serif" font-size="58" font-weight="700" fill="#ffffff">Collections</text>
+  <rect x="432" y="290" width="120" height="6" rx="3" fill="url(#jf)"/>
+</svg>

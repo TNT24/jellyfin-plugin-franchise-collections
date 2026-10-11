@@ -6,7 +6,7 @@
         "overview":  "Automatic movie franchise collections",
         "owner":  "TNT24",
         "category":  "Metadata",
-        "imageUrl":  "",
+        "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
                              "version":  "1.0.0.0",

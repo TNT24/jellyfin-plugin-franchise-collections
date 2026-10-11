@@ -34,6 +34,7 @@ foreach ($t in $targets) {
     $out = Join-Path $artifacts "$($t.Label)\Franchise Collections_$version"
     New-Item -ItemType Directory $out | Out-Null
     Copy-Item (Join-Path $staging 'Jellyfin.Plugin.FranchiseCollections.dll') $out
+    Copy-Item (Join-Path $PSScriptRoot 'images\logo.png') $out
     Remove-Item $staging -Recurse -Force
 
     $meta = [ordered]@{
@@ -49,14 +50,14 @@ foreach ($t in $targets) {
         version     = $version
         status      = 'Active'
         autoUpdate  = $false
-        imagePath   = ''
+        imagePath   = 'logo.png'
         assemblies  = @('Jellyfin.Plugin.FranchiseCollections.dll')
     }
     [IO.File]::WriteAllText((Join-Path $out 'meta.json'), ($meta | ConvertTo-Json), $utf8NoBom)
 
     $zipName = "franchise-collections_$($version)_$($t.Label).zip"
     $zip = Join-Path $artifacts $zipName
-    Compress-Archive -Path (Join-Path $out 'Jellyfin.Plugin.FranchiseCollections.dll'), (Join-Path $out 'meta.json') -DestinationPath $zip
+    Compress-Archive -Path (Join-Path $out 'Jellyfin.Plugin.FranchiseCollections.dll'), (Join-Path $out 'meta.json'), (Join-Path $out 'logo.png') -DestinationPath $zip
     Write-Host "Created $out"
     Write-Host "Created $zip"
 
@@ -86,7 +87,7 @@ $manifest = @(
         overview    = $overview
         owner       = 'TNT24'
         category    = 'Metadata'
-        imageUrl    = ''
+        imageUrl    = "https://raw.githubusercontent.com/$repo/main/images/logo.png"
         versions    = @($manifestVersions) + $oldVersions
     }
 )

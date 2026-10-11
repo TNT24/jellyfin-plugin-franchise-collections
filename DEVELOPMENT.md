@@ -14,6 +14,7 @@ Notes for working on the Franchise Collections plugin. For what it does and how 
 | `Configuration/PluginConfiguration.cs` | Settings, saved as XML by Jellyfin. |
 | `Configuration/configPage.html` | Settings page, embedded in the DLL. |
 | `package.ps1` | Builds both targets and produces drop-in folders and zips in `artifacts/`. |
+| `images/logo.svg` | Logo source. `images/logo.png` (800×450) is rendered from it and used by the catalog (`imageUrl`) and the zips (`imagePath`). |
 
 ## How a sync works
 
