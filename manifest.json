@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.1.12",
+                             "changelog":  "Separate version numbers for the Jellyfin 12 and 10.11 builds, so each server gets the right one.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.1/franchise-collections_1.0.1.12_jellyfin-12.zip",
+                             "checksum":  "e422bf6f6f06c2519a882c1d59850f42",
+                             "timestamp":  "2026-10-11T11:00:18Z"
+                         },
+                         {
+                             "version":  "1.0.1.11",
+                             "changelog":  "Separate version numbers for the Jellyfin 12 and 10.11 builds, so each server gets the right one.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.1/franchise-collections_1.0.1.11_jellyfin-10.11.zip",
+                             "checksum":  "8b918b1988f7c130e809bcd616c7cb8c",
+                             "timestamp":  "2026-10-11T11:00:18Z"
+                         },
+                         {
                              "version":  "1.0.0.1",
                              "changelog":  "Choose which libraries to use. New \"Sync and override\" button makes franchise collections match TMDb exactly. Logo.",
                              "targetAbi":  "12.0.0.0",

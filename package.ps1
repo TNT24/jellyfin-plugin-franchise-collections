@@ -2,16 +2,16 @@
 # and updates manifest.json (the plugin repository manifest).
 $ErrorActionPreference = 'Stop'
 
-$version = '1.0.0.1'
-$changelog = 'Choose which libraries to use. New "Sync and override" button makes franchise collections match TMDb exactly. Logo.'
+# Each Jellyfin line gets its own last version number (.12 / .11). A Jellyfin 12 server can also
+# install 10.11 builds, so equal version numbers would leave it to pick between the two builds.
+$baseVersion = '1.0.1'
+$changelog = 'Separate version numbers for the Jellyfin 12 and 10.11 builds, so each server gets the right one.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'
-# Newest server line first: Jellyfin sorts compatible versions with a stable sort, so with equal
-# version numbers the first entry in manifest.json wins.
 $targets = @(
-    @{ Framework = 'net10.0'; TargetAbi = '12.0.0.0';  Label = 'jellyfin-12' },
-    @{ Framework = 'net9.0';  TargetAbi = '10.11.0.0'; Label = 'jellyfin-10.11' }
+    @{ Framework = 'net10.0'; TargetAbi = '12.0.0.0';  Label = 'jellyfin-12';    Build = '12' },
+    @{ Framework = 'net9.0';  TargetAbi = '10.11.0.0'; Label = 'jellyfin-10.11'; Build = '11' }
 )
 $description = 'Automatically creates and updates collections for movie franchises using TMDb collection data.'
 $overview = 'Automatic movie franchise collections'
@@ -26,8 +26,9 @@ if (Test-Path $artifacts) { Remove-Item $artifacts -Recurse -Force }
 New-Item -ItemType Directory $artifacts | Out-Null
 
 foreach ($t in $targets) {
+    $version = "$baseVersion.$($t.Build)"
     $staging = Join-Path $artifacts "staging-$($t.Label)"
-    dotnet publish $project -c Release -f $t.Framework -o $staging
+    dotnet publish $project -c Release -f $t.Framework -o $staging -p:AssemblyVersion=$version -p:FileVersion=$version
     if ($LASTEXITCODE -ne 0) { throw "Build failed for $($t.Framework)" }
 
     # Drop-in folder: copy "Franchise Collections_<version>" straight into the server's plugins directory.
@@ -65,19 +66,20 @@ foreach ($t in $targets) {
         version   = $version
         changelog = $changelog
         targetAbi = $t.TargetAbi
-        sourceUrl = "https://github.com/$repo/releases/download/v$version/$zipName"
+        sourceUrl = "https://github.com/$repo/releases/download/v$baseVersion/$zipName"
         checksum  = (Get-FileHash $zip -Algorithm MD5).Hash.ToLowerInvariant()
         timestamp = $timestamp
     }
 }
 
 # Plugin repository manifest, served from the repo's main branch. Versions from earlier releases are
-# kept so they stay installable; entries for the version being built are replaced.
+# kept so they stay installable; entries for the versions being built are replaced.
 $manifestPath = Join-Path $PSScriptRoot 'manifest.json'
 $oldVersions = @()
 if (Test-Path $manifestPath) {
     $old = @(Get-Content $manifestPath -Raw | ConvertFrom-Json)
-    $oldVersions = @($old[0].versions | Where-Object { $_.version -ne $version })
+    $builtVersions = @($manifestVersions | ForEach-Object { $_.version })
+    $oldVersions = @($old[0].versions | Where-Object { $builtVersions -notcontains $_.version })
 }
 $manifest = @(
     [ordered]@{
