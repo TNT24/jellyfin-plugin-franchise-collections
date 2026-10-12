@@ -28,6 +28,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool RemoveStaleMovies { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets the order movies are shown in inside each franchise collection: a <c>BoxSet.DisplayOrder</c> value
+    /// ("PremiereDate", "SortName" or "Default" for date added), or "Unchanged" to leave each collection as it is.
+    /// </summary>
+    public string CollectionSortOrder { get; set; } = "PremiereDate";
+
+    /// <summary>
+    /// Gets or sets when a poster is made from the collection's movie posters:
+    /// "Off", "Missing" (only for collections without a poster) or "Always" (replace every franchise collection's poster).
+    /// </summary>
+    public string GeneratedPosters { get; set; } = "Off";
+
+    /// <summary>
     /// Gets or sets franchise names (one per line) that should never get a collection.
     /// </summary>
     public string ExcludedFranchises { get; set; } = string.Empty;

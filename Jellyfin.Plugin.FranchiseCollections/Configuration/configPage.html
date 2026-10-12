@@ -5,7 +5,7 @@
     <title>Franchise Collections</title>
 </head>
 <body>
-    <div id="FranchiseCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div id="FranchiseCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select">
         <style>
             #FranchiseCollectionsConfigPage .fc-content { max-width: 52em; }
             #FranchiseCollectionsConfigPage .fc-intro { margin: 0 0 2em; opacity: 0.8; line-height: 1.5; }
@@ -41,6 +41,28 @@
                         <label class="fc-label">Libraries</label>
                         <div id="Libraries" class="paperList fc-libraries"></div>
                         <div class="fieldDescription">Only movies in the ticked libraries are grouped. Leave them all unticked to use every library.</div>
+                    </div>
+
+                    <div class="fc-section">
+                        <h3>Appearance</h3>
+                        <div class="selectContainer">
+                            <select is="emby-select" id="CollectionSortOrder" label="Movie order inside collections">
+                                <option value="PremiereDate">Release date</option>
+                                <option value="SortName">Name</option>
+                                <option value="Default">Date added</option>
+                                <option value="Unchanged">Don't change (set per collection)</option>
+                            </select>
+                            <div class="fieldDescription">Applied to every franchise collection on each sync.</div>
+                        </div>
+                        <div class="selectContainer">
+                            <select is="emby-select" id="GeneratedPosters" label="Make posters from the movies' posters">
+                                <option value="Off">Off: use the TMDb poster</option>
+                                <option value="Missing">Only for collections with no poster</option>
+                                <option value="Always">Always: replace every franchise collection's poster</option>
+                            </select>
+                            <div class="fieldDescription">Builds a poster from up to four of the collection's movie posters, in release order.
+                                "Always" also replaces posters you picked yourself. Posters made this way are updated when movies are added.</div>
+                        </div>
                     </div>
 
                     <div class="fc-section">
@@ -158,6 +180,8 @@
                     config.UpdateOnLibraryChange = page.querySelector('#UpdateOnLibraryChange').checked;
                     config.RemoveStaleMovies = page.querySelector('#RemoveStaleMovies').checked;
                     config.ExcludedFranchises = page.querySelector('#ExcludedFranchises').value;
+                    config.CollectionSortOrder = page.querySelector('#CollectionSortOrder').value;
+                    config.GeneratedPosters = page.querySelector('#GeneratedPosters').value;
                     return ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config);
                 }).then(function () {
                     setStatus('Saved.');
@@ -212,6 +236,8 @@
                     page.querySelector('#UpdateOnLibraryChange').checked = config.UpdateOnLibraryChange;
                     page.querySelector('#RemoveStaleMovies').checked = config.RemoveStaleMovies;
                     page.querySelector('#ExcludedFranchises').value = config.ExcludedFranchises || '';
+                    page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'PremiereDate';
+                    page.querySelector('#GeneratedPosters').value = config.GeneratedPosters || 'Off';
                     setStatus('Changes are saved automatically.');
                     franchiseLoaded = true;
                     Dashboard.hideLoadingMsg();

@@ -4,8 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 # Each Jellyfin line gets its own last version number (.12 / .11). A Jellyfin 12 server can also
 # install 10.11 builds, so equal version numbers would leave it to pick between the two builds.
-$baseVersion = '1.0.6'
-$changelog = 'Adds Franchise Collections to the dashboard side menu.'
+$baseVersion = '1.0.7'
+$changelog = 'New settings: movie order inside franchise collections (release date by default), and optional collection posters built from the posters of the movies in each collection.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'

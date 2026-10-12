@@ -31,6 +31,7 @@ public class FranchiseCollectionService
     private readonly ICollectionManager _collectionManager;
     private readonly IProviderManager _providerManager;
     private readonly IFileSystem _fileSystem;
+    private readonly CollectionPosterGenerator _posterGenerator;
     private readonly ILogger<FranchiseCollectionService> _logger;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
@@ -41,18 +42,21 @@ public class FranchiseCollectionService
     /// <param name="collectionManager">Collection manager.</param>
     /// <param name="providerManager">Provider manager.</param>
     /// <param name="fileSystem">File system.</param>
+    /// <param name="posterGenerator">Collection poster generator.</param>
     /// <param name="logger">Logger.</param>
     public FranchiseCollectionService(
         ILibraryManager libraryManager,
         ICollectionManager collectionManager,
         IProviderManager providerManager,
         IFileSystem fileSystem,
+        CollectionPosterGenerator posterGenerator,
         ILogger<FranchiseCollectionService> logger)
     {
         _libraryManager = libraryManager;
         _collectionManager = collectionManager;
         _providerManager = providerManager;
         _fileSystem = fileSystem;
+        _posterGenerator = posterGenerator;
         _logger = logger;
     }
 
@@ -190,6 +194,7 @@ public class FranchiseCollectionService
                     collectionsByTmdbId.TryAdd(tmdbId, newCollection);
                     collectionsByName.TryAdd(createName, newCollection);
                     created++;
+                    await ApplyDisplaySettingsAsync(newCollection, movies, config, isNew: true, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -202,6 +207,8 @@ public class FranchiseCollectionService
                     {
                         updated++;
                     }
+
+                    await ApplyDisplaySettingsAsync(collection, movies, config, isNew: false, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -305,6 +312,36 @@ public class FranchiseCollectionService
 
         collectionsByTmdbId[tmdbId] = keep;
         return duplicates.Count;
+    }
+
+    /// <summary>
+    /// Applies the sort order and generated poster settings to a franchise collection.
+    /// </summary>
+    private async Task ApplyDisplaySettingsAsync(
+        BoxSet collection,
+        IReadOnlyList<Movie> movies,
+        PluginConfiguration config,
+        bool isNew,
+        CancellationToken cancellationToken)
+    {
+        var sortOrder = config.CollectionSortOrder;
+        if (!string.IsNullOrWhiteSpace(sortOrder)
+            && !string.Equals(sortOrder, "Unchanged", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(collection.DisplayOrder, sortOrder, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("Setting the order of collection {Name} to {Order}", collection.Name, sortOrder);
+            collection.DisplayOrder = sortOrder;
+            await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await _posterGenerator.UpdatePosterAsync(collection, movies, config.GeneratedPosters, isNew, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to make a poster for collection {Name}", collection.Name);
+        }
     }
 
     private static string? GetFranchiseId(BoxSet collection)
