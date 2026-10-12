@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.10.12",
+                             "changelog":  "Locked collections get a clear warning in the log and are left alone, and a generated poster no longer hides a missing description.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.10/franchise-collections_1.0.10.12_jellyfin-12.zip",
+                             "checksum":  "71b841fa6522cd0fa709b8ca9d4d621f",
+                             "timestamp":  "2026-10-12T22:59:21Z"
+                         },
+                         {
+                             "version":  "1.0.10.11",
+                             "changelog":  "Locked collections get a clear warning in the log and are left alone, and a generated poster no longer hides a missing description.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.10/franchise-collections_1.0.10.11_jellyfin-10.11.zip",
+                             "checksum":  "0339953430cf50f132a9095a4a7e6c2a",
+                             "timestamp":  "2026-10-12T22:59:21Z"
+                         },
+                         {
                              "version":  "1.0.9.12",
                              "changelog":  "Sync and override now deletes franchise collections with fewer movies than the minimum.",
                              "targetAbi":  "12.0.0.0",

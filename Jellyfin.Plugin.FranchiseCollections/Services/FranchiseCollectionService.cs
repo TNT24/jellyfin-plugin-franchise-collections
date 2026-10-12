@@ -35,6 +35,9 @@ public class FranchiseCollectionService
     private readonly ILogger<FranchiseCollectionService> _logger;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
+    // Collections whose TMDb metadata was requested in the current sync; their poster may still be downloading.
+    private readonly HashSet<Guid> _metadataRequested = [];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="FranchiseCollectionService"/> class.
     /// </summary>
@@ -93,6 +96,7 @@ public class FranchiseCollectionService
     private async Task SyncInternalAsync(bool overrideManualChanges, IProgress<double> progress, CancellationToken cancellationToken)
     {
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        _metadataRequested.Clear();
         var minimumMovies = Math.Max(1, config.MinimumMovies);
         var excluded = ParseExcluded(config.ExcludedFranchises);
         var libraryIds = ParseLibraryIds(config.LibraryIds);
@@ -228,7 +232,7 @@ public class FranchiseCollectionService
                         updated++;
                     }
 
-                    await ApplyDisplaySettingsAsync(collection, movies, config, isNew: false, cancellationToken).ConfigureAwait(false);
+                    await ApplyDisplaySettingsAsync(collection, movies, config, isNew: _metadataRequested.Contains(collection.Id), cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -338,6 +342,9 @@ public class FranchiseCollectionService
     /// <summary>
     /// Applies the sort order and generated poster settings to a franchise collection.
     /// </summary>
+    /// <param name="isNew">
+    /// Whether the collection's TMDb poster may still be downloading (created, or metadata requested, in this sync).
+    /// </param>
     private async Task ApplyDisplaySettingsAsync(
         BoxSet collection,
         IReadOnlyList<Movie> movies,
@@ -345,6 +352,12 @@ public class FranchiseCollectionService
         bool isNew,
         CancellationToken cancellationToken)
     {
+        // A locked collection is meant to stay exactly as it is.
+        if (collection.IsLocked)
+        {
+            return;
+        }
+
         var sortOrder = config.CollectionSortOrder;
         if (!string.IsNullOrWhiteSpace(sortOrder)
             && !string.Equals(sortOrder, "Unchanged", StringComparison.OrdinalIgnoreCase)
@@ -473,12 +486,24 @@ public class FranchiseCollectionService
                 },
                 RefreshPriority.High);
         }
+        else if (collection.IsLocked)
+        {
+            // Jellyfin skips every metadata refresh on a locked item, so asking for one would never fill anything in.
+            if (string.IsNullOrWhiteSpace(collection.Overview))
+            {
+                _logger.LogWarning(
+                    "Collection {Name} has no description but is locked, so Jellyfin won't fetch it. Untick \"Lock this item\" in its metadata editor to allow it",
+                    collection.Name);
+            }
+        }
         else if (string.IsNullOrWhiteSpace(metadataId)
-            || (string.IsNullOrWhiteSpace(collection.Overview) && !collection.HasImage(ImageType.Primary)))
+            || string.IsNullOrWhiteSpace(collection.Overview)
+            || !collection.HasImage(ImageType.Primary))
         {
             // A taken-over collection (hand-made, or tagged before it had a "Tmdb" id) never had TMDb metadata
             // fetched, so it has no overview or poster. Fill in only what's missing, keeping anything already set.
             _logger.LogInformation("Collection {Name} is missing TMDb metadata, fetching it", collection.Name);
+            _metadataRequested.Add(collection.Id);
             _providerManager.QueueRefresh(
                 collection.Id,
                 new MetadataRefreshOptions(new DirectoryService(_fileSystem))

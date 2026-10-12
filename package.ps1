@@ -4,8 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 # Each Jellyfin line gets its own last version number (.12 / .11). A Jellyfin 12 server can also
 # install 10.11 builds, so equal version numbers would leave it to pick between the two builds.
-$baseVersion = '1.0.9'
-$changelog = 'Sync and override now deletes franchise collections with fewer movies than the minimum.'
+$baseVersion = '1.0.10'
+$changelog = 'Locked collections get a clear warning in the log and are left alone, and a generated poster no longer hides a missing description.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'
