@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.9.12",
+                             "changelog":  "Sync and override now deletes franchise collections with fewer movies than the minimum.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.9/franchise-collections_1.0.9.12_jellyfin-12.zip",
+                             "checksum":  "a2b9ca07b83d5a1ff1609bd6aeeabc16",
+                             "timestamp":  "2026-10-12T22:36:58Z"
+                         },
+                         {
+                             "version":  "1.0.9.11",
+                             "changelog":  "Sync and override now deletes franchise collections with fewer movies than the minimum.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.9/franchise-collections_1.0.9.11_jellyfin-10.11.zip",
+                             "checksum":  "4112b595db2f4f1ca6929260aee3be47",
+                             "timestamp":  "2026-10-12T22:36:58Z"
+                         },
+                         {
                              "version":  "1.0.8.12",
                              "changelog":  "Fills in the description and poster of franchise collections that have none, such as collections adopted from ones you made yourself.",
                              "targetAbi":  "12.0.0.0",

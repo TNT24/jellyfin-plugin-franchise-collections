@@ -142,7 +142,7 @@ public class FranchiseCollectionService
             franchises.Count,
             overrideManualChanges ? ", overriding manual changes" : string.Empty);
 
-        int created = 0, updated = 0, deleted = 0;
+        int created = 0, updated = 0, deleted = 0, belowMinimumDeleted = 0;
         for (var i = 0; i < franchises.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -201,6 +201,26 @@ public class FranchiseCollectionService
                     if (overrideManualChanges)
                     {
                         deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName);
+
+                        // Only creation checks the minimum, so an adopted or older collection can be left with fewer movies.
+                        if (movies.Count < minimumMovies)
+                        {
+                            _logger.LogInformation(
+                                "Deleting collection {Name}: it has {Count} movies, fewer than the minimum of {Minimum}",
+                                collection.Name,
+                                movies.Count,
+                                minimumMovies);
+                            _libraryManager.DeleteItem(collection, new DeleteOptions { DeleteFileLocation = true });
+                            existingCollections.Remove(collection);
+                            collectionsByTmdbId.Remove(tmdbId);
+                            if (!string.IsNullOrWhiteSpace(collection.Name))
+                            {
+                                collectionsByName.Remove(collection.Name);
+                            }
+
+                            belowMinimumDeleted++;
+                            continue;
+                        }
                     }
 
                     if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges).ConfigureAwait(false))
@@ -227,10 +247,11 @@ public class FranchiseCollectionService
 
         progress.Report(100);
         _logger.LogInformation(
-            "Franchise collection sync finished: {Created} created, {Updated} updated, {Deleted} duplicates deleted, {HandMade} other collections deleted",
+            "Franchise collection sync finished: {Created} created, {Updated} updated, {Deleted} duplicates deleted, {BelowMinimum} below the minimum deleted, {HandMade} other collections deleted",
             created,
             updated,
             deleted,
+            belowMinimumDeleted,
             handMadeDeleted);
     }
 
