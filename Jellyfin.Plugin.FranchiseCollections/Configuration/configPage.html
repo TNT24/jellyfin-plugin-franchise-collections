@@ -5,56 +5,91 @@
     <title>Franchise Collections</title>
 </head>
 <body>
-    <div id="FranchiseCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-textarea">
+    <div id="FranchiseCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+        <style>
+            #FranchiseCollectionsConfigPage .fc-content { max-width: 52em; }
+            #FranchiseCollectionsConfigPage .fc-intro { margin: 0 0 2em; opacity: 0.8; line-height: 1.5; }
+            #FranchiseCollectionsConfigPage .fc-section { margin-bottom: 2.5em; }
+            #FranchiseCollectionsConfigPage .fc-section > h3 {
+                margin: 0 0 1em; padding-bottom: 0.4em; border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+            }
+            #FranchiseCollectionsConfigPage .fc-libraries { padding: 0.5em 1em; margin-bottom: 0.5em; }
+            #FranchiseCollectionsConfigPage .fc-libraries .emby-checkbox-label { display: flex; margin: 0.6em 0; }
+            #FranchiseCollectionsConfigPage .fc-textarea { width: 100%; box-sizing: border-box; min-height: 8em; resize: vertical; padding: 0.5em; font-family: inherit; }
+            #FranchiseCollectionsConfigPage .fc-label { display: block; margin-bottom: 0.4em; }
+            #FranchiseCollectionsConfigPage .fc-status { margin: -1.2em 0 2em; opacity: 0.7; font-size: 0.9em; }
+            #FranchiseCollectionsConfigPage .fc-status.fc-error { color: #e9a23b; opacity: 1; }
+            #FranchiseCollectionsConfigPage .fc-actions { display: flex; flex-wrap: wrap; gap: 1em; }
+            #FranchiseCollectionsConfigPage .fc-action { flex: 1 1 18em; }
+            #FranchiseCollectionsConfigPage .fc-action .emby-button { width: 100%; margin: 0; }
+            #FranchiseCollectionsConfigPage .fc-action .fieldDescription { margin-top: 0.6em; }
+        </style>
         <div data-role="content">
-            <div class="content-primary">
+            <div class="content-primary fc-content">
                 <h2 class="sectionTitle">Franchise Collections</h2>
-                <p>Groups movies into collections using the franchise data TMDb provides (e.g. "The Matrix Collection", "Shrek Collection").
-                   Movies need TMDb metadata for this to work.</p>
+                <p class="fc-intro">Groups movies into collections using the franchise data from TMDb, such as "The Matrix Collection"
+                    or "Shrek Collection". Movies need TMDb metadata for this to work.</p>
+
+                <p id="SaveStatus" class="fc-status">Changes are saved automatically.</p>
                 <form id="FranchiseCollectionsConfigForm">
-                    <div class="inputContainer">
-                        <input is="emby-input" type="number" id="MinimumMovies" min="1" required label="Minimum movies per collection" />
-                        <div class="fieldDescription">Only create a collection once you own at least this many movies from the franchise.</div>
+                    <div class="fc-section">
+                        <h3>Collections</h3>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="MinimumMovies" min="1" required label="Minimum movies per collection" />
+                            <div class="fieldDescription">A collection is only created once you have at least this many movies from the franchise.</div>
+                        </div>
+                        <label class="fc-label">Libraries</label>
+                        <div id="Libraries" class="paperList fc-libraries"></div>
+                        <div class="fieldDescription">Only movies in the ticked libraries are grouped. Leave them all unticked to use every library.</div>
                     </div>
-                    <div class="verticalSection">
-                        <h3 class="checkboxListLabel">Libraries</h3>
-                        <div id="Libraries" class="checkboxList paperList checkboxList-paperList"></div>
-                        <div class="fieldDescription">Only movies in the ticked libraries are grouped into collections. Leave all unticked to use every library.</div>
+
+                    <div class="fc-section">
+                        <h3>Updates</h3>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="UpdateOnLibraryChange" />
+                                <span>Update automatically when movies are added</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">Runs a sync a couple of minutes after the library changes. A daily sync also runs from Scheduled Tasks.</div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="RemoveStaleMovies" />
+                                <span>Remove movies that TMDb moves to a different franchise</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">Movies you added to a collection by hand are never removed.</div>
+                        </div>
                     </div>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input is="emby-checkbox" type="checkbox" id="UpdateOnLibraryChange" />
-                            <span>Update automatically when movies are added</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">Runs a sync a couple of minutes after the library changes. A daily sync also runs from Scheduled Tasks.</div>
+
+                    <div class="fc-section">
+                        <h3>Excluded franchises</h3>
+                        <label class="fc-label" for="ExcludedFranchises">Collection names to leave alone, one per line</label>
+                        <textarea id="ExcludedFranchises" class="emby-input fc-textarea" rows="6" placeholder="James Bond Collection"></textarea>
+                        <div class="fieldDescription">The plugin never creates or changes these collections. Use it for a franchise you don't want
+                            a collection for, or one you manage by hand.</div>
                     </div>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input is="emby-checkbox" type="checkbox" id="RemoveStaleMovies" />
-                            <span>Remove movies that TMDb moves to a different franchise</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">Movies you added to a collection by hand are never removed.</div>
-                    </div>
-                    <div class="inputContainer">
-                        <textarea is="emby-textarea" id="ExcludedFranchises" rows="5" label="Excluded franchises"></textarea>
-                        <div class="fieldDescription">One collection name per line, e.g. "James Bond Collection". These are never created or changed.</div>
-                    </div>
-                    <div>
-                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-                            <span>Save</span>
-                        </button>
-                        <button is="emby-button" type="button" id="RunNow" class="raised block emby-button">
-                            <span>Sync now</span>
-                        </button>
-                        <button is="emby-button" type="button" id="RunOverride" class="raised block emby-button">
-                            <span>Sync and override</span>
-                        </button>
-                        <div class="fieldDescription">Makes every franchise collection match TMDb exactly. Movies and other items you added by hand
-                            are removed, a collection with the same name as a franchise is taken over, and duplicate collections
-                            of the same franchise are deleted (the movies are kept). Collections that aren't
-                            franchises and excluded franchises are not touched.</div>
-                    </div>
+
                 </form>
+
+                <div class="fc-section">
+                    <h3>Run now</h3>
+                    <div class="fc-actions">
+                        <div class="fc-action">
+                            <button is="emby-button" type="button" id="RunNow" class="raised emby-button">
+                                <span>Sync now</span>
+                            </button>
+                            <div class="fieldDescription">Creates missing collections and adds new movies to existing ones.</div>
+                        </div>
+                        <div class="fc-action">
+                            <button is="emby-button" type="button" id="RunOverride" class="raised emby-button">
+                                <span>Sync and override</span>
+                            </button>
+                            <div class="fieldDescription">Makes every franchise collection match TMDb exactly. Movies you added by hand are removed,
+                                a collection with the same name is taken over, and duplicate collections of a franchise are deleted
+                                (the movies are kept). Other collections and excluded franchises are not touched.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <script type="text/javascript">
@@ -63,6 +98,16 @@
                 taskKey: 'FranchiseCollectionsSync',
                 overrideTaskKey: 'FranchiseCollectionsOverride'
             };
+
+            function franchisePage() {
+                return document.querySelector('#FranchiseCollectionsConfigPage');
+            }
+
+            function setStatus(text, isError) {
+                var status = franchisePage().querySelector('#SaveStatus');
+                status.textContent = text;
+                status.classList.toggle('fc-error', !!isError);
+            }
 
             // Lists movie and mixed-content libraries; ids are compared without dashes and case-insensitively.
             function renderLibraries(folders, selectedIds) {
@@ -73,79 +118,137 @@
                     div.textContent = text;
                     return div.innerHTML;
                 };
-                document.querySelector('#Libraries').innerHTML = folders
+                var container = franchisePage().querySelector('#Libraries');
+                container.innerHTML = folders
                     .filter(function (f) { return !f.CollectionType || f.CollectionType === 'movies' || f.CollectionType === 'mixed'; })
                     .map(function (f) {
-                        var checked = selected.indexOf(normalize(f.ItemId)) !== -1 ? ' checked' : '';
                         return '<label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" data-id="'
-                            + escape(f.ItemId) + '"' + checked + ' /><span>' + escape(f.Name) + '</span></label>';
+                            + escape(f.ItemId) + '" /><span>' + escape(f.Name) + '</span></label>';
                     })
                     .join('') || '<div>No movie libraries found.</div>';
+                // Set the property rather than the attribute, so the tick shows whenever the checkbox is upgraded.
+                Array.prototype.forEach.call(container.querySelectorAll('input[data-id]'), function (input) {
+                    input.checked = selected.indexOf(normalize(input.getAttribute('data-id'))) !== -1;
+                });
             }
 
+            // Saves run one after another, so a slow save can't overwrite a newer one.
+            var franchiseSaveChain = Promise.resolve();
+            var franchiseSaveTimer = null;
+            var franchiseLoaded = false;
+
+            function saveConfig() {
+                var page = franchisePage();
+                if (franchiseSaveTimer) {
+                    clearTimeout(franchiseSaveTimer);
+                    franchiseSaveTimer = null;
+                }
+                if (!franchiseLoaded) {
+                    return franchiseSaveChain;
+                }
+                setStatus('Saving…');
+                franchiseSaveChain = franchiseSaveChain.catch(function () { }).then(function () {
+                    return ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId);
+                }).then(function (config) {
+                    config.MinimumMovies = parseInt(page.querySelector('#MinimumMovies').value, 10) || 2;
+                    config.LibraryIds = Array.prototype.map.call(
+                        page.querySelectorAll('#Libraries input:checked'),
+                        function (input) { return input.getAttribute('data-id'); });
+                    config.UpdateOnLibraryChange = page.querySelector('#UpdateOnLibraryChange').checked;
+                    config.RemoveStaleMovies = page.querySelector('#RemoveStaleMovies').checked;
+                    config.ExcludedFranchises = page.querySelector('#ExcludedFranchises').value;
+                    return ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config);
+                }).then(function () {
+                    setStatus('Saved.');
+                }, function (err) {
+                    setStatus('Could not save your changes. Check the server is running and try again.', true);
+                    throw err;
+                });
+                return franchiseSaveChain;
+            }
+
+            // Typing waits for a pause before saving; ticks and other changes save straight away.
+            function scheduleSave(delay) {
+                if (franchiseSaveTimer) {
+                    clearTimeout(franchiseSaveTimer);
+                }
+                franchiseSaveTimer = setTimeout(saveConfig, delay);
+            }
+
+            // Saves first, so the run uses the settings on screen.
             function startFranchiseTask(key, startedMessage) {
-                ApiClient.getScheduledTasks().then(function (tasks) {
+                Dashboard.showLoadingMsg();
+                saveConfig().then(function () {
+                    return ApiClient.getScheduledTasks();
+                }).then(function (tasks) {
                     var task = tasks.filter(function (t) { return t.Key === key; })[0];
                     if (!task) {
+                        Dashboard.hideLoadingMsg();
                         Dashboard.alert('Sync task not found. Try restarting the server.');
                         return;
                     }
-                    ApiClient.startScheduledTask(task.Id).then(function () {
+                    return ApiClient.startScheduledTask(task.Id).then(function () {
+                        Dashboard.hideLoadingMsg();
                         Dashboard.alert(startedMessage);
                     });
+                }).catch(function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Could not save settings or start the sync.');
                 });
             }
 
-            document.querySelector('#FranchiseCollectionsConfigPage')
-                .addEventListener('pageshow', function () {
-                    Dashboard.showLoadingMsg();
-                    Promise.all([
-                        ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId),
-                        ApiClient.getVirtualFolders()
-                    ]).then(function (results) {
-                        var config = results[0];
-                        renderLibraries(results[1], config.LibraryIds || []);
-                        document.querySelector('#MinimumMovies').value = config.MinimumMovies;
-                        document.querySelector('#UpdateOnLibraryChange').checked = config.UpdateOnLibraryChange;
-                        document.querySelector('#RemoveStaleMovies').checked = config.RemoveStaleMovies;
-                        document.querySelector('#ExcludedFranchises').value = config.ExcludedFranchises || '';
-                        Dashboard.hideLoadingMsg();
-                    });
+            franchisePage().addEventListener('pageshow', function () {
+                var page = franchisePage();
+                franchiseLoaded = false;
+                Dashboard.showLoadingMsg();
+                Promise.all([
+                    ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId),
+                    ApiClient.getVirtualFolders()
+                ]).then(function (results) {
+                    var config = results[0];
+                    renderLibraries(results[1], config.LibraryIds || []);
+                    page.querySelector('#MinimumMovies').value = config.MinimumMovies;
+                    page.querySelector('#UpdateOnLibraryChange').checked = config.UpdateOnLibraryChange;
+                    page.querySelector('#RemoveStaleMovies').checked = config.RemoveStaleMovies;
+                    page.querySelector('#ExcludedFranchises').value = config.ExcludedFranchises || '';
+                    setStatus('Changes are saved automatically.');
+                    franchiseLoaded = true;
+                    Dashboard.hideLoadingMsg();
                 });
+            });
 
-            document.querySelector('#FranchiseCollectionsConfigForm')
-                .addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    Dashboard.showLoadingMsg();
-                    ApiClient.getPluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId).then(function (config) {
-                        config.MinimumMovies = parseInt(document.querySelector('#MinimumMovies').value, 10) || 2;
-                        config.LibraryIds = Array.prototype.map.call(
-                            document.querySelectorAll('#Libraries input:checked'),
-                            function (input) { return input.getAttribute('data-id'); });
-                        config.UpdateOnLibraryChange = document.querySelector('#UpdateOnLibraryChange').checked;
-                        config.RemoveStaleMovies = document.querySelector('#RemoveStaleMovies').checked;
-                        config.ExcludedFranchises = document.querySelector('#ExcludedFranchises').value;
-                        ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config).then(function (result) {
-                            Dashboard.processPluginConfigurationUpdateResult(result);
-                        });
-                    });
-                    return false;
-                });
+            franchisePage().addEventListener('pagebeforehide', function () {
+                if (franchiseSaveTimer) {
+                    saveConfig();
+                }
+            });
 
-            document.querySelector('#RunNow')
-                .addEventListener('click', function () {
-                    startFranchiseTask(FranchiseCollectionsConfig.taskKey,
-                        'Franchise collection sync started. Check Scheduled Tasks for progress.');
-                });
+            franchisePage().querySelector('#FranchiseCollectionsConfigForm').addEventListener('change', function () {
+                scheduleSave(0);
+            });
+            franchisePage().querySelector('#FranchiseCollectionsConfigForm').addEventListener('input', function (e) {
+                if (e.target.type !== 'checkbox') {
+                    scheduleSave(800);
+                }
+            });
+            franchisePage().querySelector('#FranchiseCollectionsConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveConfig();
+                return false;
+            });
 
-            document.querySelector('#RunOverride')
-                .addEventListener('click', function () {
-                    if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed, and duplicate franchise collections will be deleted.')) {
-                        return;
-                    }
-                    startFranchiseTask(FranchiseCollectionsConfig.overrideTaskKey,
-                        'Franchise collection override started. Check Scheduled Tasks for progress.');
-                });
+            franchisePage().querySelector('#RunNow').addEventListener('click', function () {
+                startFranchiseTask(FranchiseCollectionsConfig.taskKey,
+                    'Settings saved and franchise collection sync started. Check Scheduled Tasks for progress.');
+            });
+
+            franchisePage().querySelector('#RunOverride').addEventListener('click', function () {
+                if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed, and duplicate franchise collections will be deleted.')) {
+                    return;
+                }
+                startFranchiseTask(FranchiseCollectionsConfig.overrideTaskKey,
+                    'Settings saved and franchise collection override started. Check Scheduled Tasks for progress.');
+            });
         </script>
     </div>
 </body>

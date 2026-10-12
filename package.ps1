@@ -4,8 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 # Each Jellyfin line gets its own last version number (.12 / .11). A Jellyfin 12 server can also
 # install 10.11 builds, so equal version numbers would leave it to pick between the two builds.
-$baseVersion = '1.0.3'
-$changelog = 'Turns on automatic updates for the plugin. Includes the 1.0.2 fixes for wrongly named collections and duplicate collections.'
+$baseVersion = '1.0.4'
+$changelog = 'Redesigned settings page: changes save automatically (no Save button), library ticks always show, and a larger labelled Excluded franchises box.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'
