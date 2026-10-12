@@ -47,7 +47,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
-                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.configPage.html", GetType().Namespace)
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.configPage.html", GetType().Namespace),
+                // Also list the settings page in the dashboard's side menu.
+                EnableInMainMenu = true,
+                DisplayName = Name,
+                MenuIcon = "collections_bookmark"
             }
         ];
     }
