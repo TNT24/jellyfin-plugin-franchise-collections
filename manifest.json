@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.5.12",
+                             "changelog":  "Sync and override now deletes every collection that is not a franchise collection, including hand-made ones, unless its name is in Excluded franchises. Movies are never deleted.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.5/franchise-collections_1.0.5.12_jellyfin-12.zip",
+                             "checksum":  "5f73bd2845817907f4d59fd021eccfe7",
+                             "timestamp":  "2026-10-12T21:43:26Z"
+                         },
+                         {
+                             "version":  "1.0.5.11",
+                             "changelog":  "Sync and override now deletes every collection that is not a franchise collection, including hand-made ones, unless its name is in Excluded franchises. Movies are never deleted.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.5/franchise-collections_1.0.5.11_jellyfin-10.11.zip",
+                             "checksum":  "38a8fd1ca8c799f4e5fa065ab38c168d",
+                             "timestamp":  "2026-10-12T21:43:26Z"
+                         },
+                         {
                              "version":  "1.0.4.12",
                              "changelog":  "Redesigned settings page: changes save automatically (no Save button), library ticks always show, and a larger labelled Excluded franchises box.",
                              "targetAbi":  "12.0.0.0",

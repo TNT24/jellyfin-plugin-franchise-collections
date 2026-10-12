@@ -65,8 +65,8 @@
                         <h3>Excluded franchises</h3>
                         <label class="fc-label" for="ExcludedFranchises">Collection names to leave alone, one per line</label>
                         <textarea id="ExcludedFranchises" class="emby-input fc-textarea" rows="6" placeholder="James Bond Collection"></textarea>
-                        <div class="fieldDescription">The plugin never creates or changes these collections. Use it for a franchise you don't want
-                            a collection for, or one you manage by hand.</div>
+                        <div class="fieldDescription">The plugin never creates, changes or deletes these collections. Use it for a franchise you
+                            don't want a collection for, or to keep a collection you made yourself when you run Sync and override.</div>
                     </div>
 
                 </form>
@@ -84,9 +84,10 @@
                             <button is="emby-button" type="button" id="RunOverride" class="raised emby-button">
                                 <span>Sync and override</span>
                             </button>
-                            <div class="fieldDescription">Makes every franchise collection match TMDb exactly. Movies you added by hand are removed,
-                                a collection with the same name is taken over, and duplicate collections of a franchise are deleted
-                                (the movies are kept). Other collections and excluded franchises are not touched.</div>
+                            <div class="fieldDescription">Makes your collections match TMDb exactly. Movies you added by hand are removed,
+                                a collection with the same name as a franchise is taken over, and <strong>every other collection is
+                                deleted</strong>, including ones you made yourself. The movies are kept. To keep a collection, add
+                                its name to Excluded franchises first.</div>
                         </div>
                     </div>
                 </div>
@@ -243,7 +244,7 @@
             });
 
             franchisePage().querySelector('#RunOverride').addEventListener('click', function () {
-                if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed, and duplicate franchise collections will be deleted.')) {
+                if (!window.confirm('Make your collections match TMDb exactly?\n\nEvery collection that is not a franchise collection will be DELETED, including ones you made yourself, unless its name is in Excluded franchises. Movies you added to franchise collections by hand will be removed. Your movies themselves are not deleted.')) {
                     return;
                 }
                 startFranchiseTask(FranchiseCollectionsConfig.overrideTaskKey,

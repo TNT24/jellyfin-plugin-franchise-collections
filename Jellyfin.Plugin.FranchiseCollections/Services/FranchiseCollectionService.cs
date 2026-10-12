@@ -62,7 +62,8 @@ public class FranchiseCollectionService
     /// <param name="overrideManualChanges">
     /// Make each franchise collection match TMDb exactly: remove every member that isn't one of the franchise's movies,
     /// take over a same-named collection whose TMDb id doesn't belong to any franchise in the library,
-    /// and delete duplicate collections of the same franchise.
+    /// delete duplicate collections of the same franchise, and delete every other collection that isn't a franchise
+    /// collection (except excluded names).
     /// </param>
     /// <param name="progress">Progress reporter (0-100).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -211,12 +212,62 @@ public class FranchiseCollectionService
             progress.Report(100d * (i + 1) / franchises.Count);
         }
 
+        var handMadeDeleted = 0;
+        if (overrideManualChanges)
+        {
+            handMadeDeleted = DeleteUnmanagedCollections(existingCollections, excluded, franchises.Count, cancellationToken);
+        }
+
         progress.Report(100);
         _logger.LogInformation(
-            "Franchise collection sync finished: {Created} created, {Updated} updated, {Deleted} duplicates deleted",
+            "Franchise collection sync finished: {Created} created, {Updated} updated, {Deleted} duplicates deleted, {HandMade} other collections deleted",
             created,
             updated,
-            deleted);
+            deleted,
+            handMadeDeleted);
+    }
+
+    /// <summary>
+    /// Deletes every collection this plugin doesn't manage (no TMDb collection id), except excluded names.
+    /// Same-named collections were already taken over and tagged by the franchise loop, so they're kept.
+    /// The movies themselves are not touched.
+    /// </summary>
+    private int DeleteUnmanagedCollections(
+        List<BoxSet> collections,
+        HashSet<string> excluded,
+        int franchiseCount,
+        CancellationToken cancellationToken)
+    {
+        // No franchises usually means missing metadata or no matching library, not that every collection should go.
+        if (franchiseCount == 0)
+        {
+            _logger.LogWarning("No franchises found, so no other collections are deleted");
+            return 0;
+        }
+
+        var unmanaged = collections
+            .Where(c => string.IsNullOrWhiteSpace(c.GetProviderId(TmdbCollectionKey)))
+            .Where(c => string.IsNullOrWhiteSpace(c.Name) || !excluded.Contains(c.Name))
+            .ToList();
+
+        var count = 0;
+        foreach (var collection in unmanaged)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                _logger.LogInformation("Deleting collection {Name}, which isn't a franchise collection", collection.Name);
+                _libraryManager.DeleteItem(collection, new DeleteOptions { DeleteFileLocation = true });
+                collections.Remove(collection);
+                count++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Failed to delete collection {Name}", collection.Name);
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
