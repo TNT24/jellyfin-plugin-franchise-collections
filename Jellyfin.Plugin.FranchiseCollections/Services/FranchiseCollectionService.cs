@@ -10,7 +10,9 @@ using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.FranchiseCollections.Services;
@@ -22,8 +24,13 @@ public class FranchiseCollectionService
 {
     private static readonly string TmdbCollectionKey = MetadataProvider.TmdbCollection.ToString();
 
+    // Jellyfin's own TMDb box set provider (and its built-in auto-collections) stores the franchise id under "Tmdb".
+    private static readonly string TmdbKey = MetadataProvider.Tmdb.ToString();
+
     private readonly ILibraryManager _libraryManager;
     private readonly ICollectionManager _collectionManager;
+    private readonly IProviderManager _providerManager;
+    private readonly IFileSystem _fileSystem;
     private readonly ILogger<FranchiseCollectionService> _logger;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
@@ -32,14 +39,20 @@ public class FranchiseCollectionService
     /// </summary>
     /// <param name="libraryManager">Library manager.</param>
     /// <param name="collectionManager">Collection manager.</param>
+    /// <param name="providerManager">Provider manager.</param>
+    /// <param name="fileSystem">File system.</param>
     /// <param name="logger">Logger.</param>
     public FranchiseCollectionService(
         ILibraryManager libraryManager,
         ICollectionManager collectionManager,
+        IProviderManager providerManager,
+        IFileSystem fileSystem,
         ILogger<FranchiseCollectionService> logger)
     {
         _libraryManager = libraryManager;
         _collectionManager = collectionManager;
+        _providerManager = providerManager;
+        _fileSystem = fileSystem;
         _logger = logger;
     }
 
@@ -48,7 +61,8 @@ public class FranchiseCollectionService
     /// </summary>
     /// <param name="overrideManualChanges">
     /// Make each franchise collection match TMDb exactly: remove every member that isn't one of the franchise's movies,
-    /// and take over a same-named collection whose TMDb id doesn't belong to any franchise in the library.
+    /// take over a same-named collection whose TMDb id doesn't belong to any franchise in the library,
+    /// and delete duplicate collections of the same franchise.
     /// </param>
     /// <param name="progress">Progress reporter (0-100).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -101,12 +115,13 @@ public class FranchiseCollectionService
             .OfType<BoxSet>()
             .ToList();
 
+        // Collections this plugin tagged come first, so they're the ones kept when a franchise has duplicates.
         var collectionsByTmdbId = new Dictionary<string, BoxSet>(StringComparer.OrdinalIgnoreCase);
         var collectionsByName = new Dictionary<string, BoxSet>(StringComparer.OrdinalIgnoreCase);
-        foreach (var collection in existingCollections)
+        foreach (var collection in existingCollections.OrderBy(c => string.IsNullOrWhiteSpace(c.GetProviderId(TmdbCollectionKey))))
         {
-            var tmdbId = collection.GetProviderId(TmdbCollectionKey);
-            if (!string.IsNullOrWhiteSpace(tmdbId))
+            var tmdbId = GetFranchiseId(collection);
+            if (tmdbId is not null)
             {
                 collectionsByTmdbId.TryAdd(tmdbId, collection);
             }
@@ -122,7 +137,7 @@ public class FranchiseCollectionService
             franchises.Count,
             overrideManualChanges ? ", overriding manual changes" : string.Empty);
 
-        int created = 0, updated = 0;
+        int created = 0, updated = 0, deleted = 0;
         for (var i = 0; i < franchises.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -144,8 +159,8 @@ public class FranchiseCollectionService
                 {
                     // Same name but a different franchise id: leave it alone, unless overriding and no franchise
                     // in the library owns that id (then it's a hand-made or mis-tagged collection we can take over).
-                    var otherId = collection.GetProviderId(TmdbCollectionKey);
-                    if (!string.IsNullOrWhiteSpace(otherId) && (!overrideManualChanges || franchiseIds.Contains(otherId)))
+                    var otherId = GetFranchiseId(collection);
+                    if (otherId is not null && (!overrideManualChanges || franchiseIds.Contains(otherId)))
                     {
                         collection = null;
                     }
@@ -175,9 +190,17 @@ public class FranchiseCollectionService
                     collectionsByName.TryAdd(createName, newCollection);
                     created++;
                 }
-                else if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges).ConfigureAwait(false))
+                else
                 {
-                    updated++;
+                    if (overrideManualChanges)
+                    {
+                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName);
+                    }
+
+                    if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges).ConfigureAwait(false))
+                    {
+                        updated++;
+                    }
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -189,7 +212,62 @@ public class FranchiseCollectionService
         }
 
         progress.Report(100);
-        _logger.LogInformation("Franchise collection sync finished: {Created} created, {Updated} updated", created, updated);
+        _logger.LogInformation(
+            "Franchise collection sync finished: {Created} created, {Updated} updated, {Deleted} duplicates deleted",
+            created,
+            updated,
+            deleted);
+    }
+
+    /// <summary>
+    /// Deletes the other collections of a franchise: those tagged with its TMDb id, and untagged ones with its name.
+    /// The movies themselves are not touched.
+    /// </summary>
+    private int DeleteDuplicateCollections(
+        BoxSet keep,
+        string tmdbId,
+        string? name,
+        List<BoxSet> collections,
+        Dictionary<string, BoxSet> collectionsByTmdbId,
+        Dictionary<string, BoxSet> collectionsByName)
+    {
+        var duplicates = collections
+            .Where(c => c.Id != keep.Id)
+            .Where(c => GetFranchiseId(c) is { } id
+                ? string.Equals(id, tmdbId, StringComparison.OrdinalIgnoreCase)
+                : name is not null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var duplicate in duplicates)
+        {
+            _logger.LogInformation("Deleting duplicate collection {Name} (keeping {Kept})", duplicate.Name, keep.Name);
+            _libraryManager.DeleteItem(duplicate, new DeleteOptions { DeleteFileLocation = true });
+            collections.Remove(duplicate);
+
+            if (!string.IsNullOrWhiteSpace(duplicate.Name)
+                && collectionsByName.TryGetValue(duplicate.Name, out var named)
+                && named.Id == duplicate.Id)
+            {
+                collectionsByName[duplicate.Name] = keep;
+            }
+        }
+
+        collectionsByTmdbId[tmdbId] = keep;
+        return duplicates.Count;
+    }
+
+    private static string? GetFranchiseId(BoxSet collection)
+    {
+        foreach (var key in new[] { TmdbCollectionKey, TmdbKey })
+        {
+            var id = collection.GetProviderId(key);
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                return id;
+            }
+        }
+
+        return null;
     }
 
     private async Task<BoxSet> CreateCollectionAsync(string tmdbId, string name, IReadOnlyList<Movie> movies)
@@ -199,9 +277,12 @@ public class FranchiseCollectionService
         return await _collectionManager.CreateCollectionAsync(new CollectionCreationOptions
         {
             Name = name,
+            // Jellyfin's box set metadata lookup reads only the "Tmdb" id; without it, it searches TMDb by name
+            // and can pick a different franchise (e.g. "RED Collection" -> "Red Ryder Collection").
             ProviderIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [TmdbCollectionKey] = tmdbId
+                [TmdbCollectionKey] = tmdbId,
+                [TmdbKey] = tmdbId
             },
             ItemIdList = movies.Select(m => m.Id.ToString("N", CultureInfo.InvariantCulture)).ToArray()
         }).ConfigureAwait(false);
@@ -251,11 +332,37 @@ public class FranchiseCollectionService
             await _collectionManager.RemoveFromCollectionAsync(collection.Id, toRemove).ConfigureAwait(false);
         }
 
-        // Tag a name-matched (or taken-over) collection with the TMDb id so future syncs match it directly.
-        if (!string.Equals(collection.GetProviderId(TmdbCollectionKey), tmdbId, StringComparison.OrdinalIgnoreCase))
+        // Tag a name-matched (or taken-over) collection with the TMDb id so future syncs match it directly, and give
+        // Jellyfin's metadata lookup the same id so it doesn't find a different franchise by name.
+        var metadataId = collection.GetProviderId(TmdbKey);
+        var wrongMetadata = !string.IsNullOrWhiteSpace(metadataId)
+            && !string.Equals(metadataId, tmdbId, StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(collection.GetProviderId(TmdbCollectionKey), tmdbId, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(metadataId, tmdbId, StringComparison.OrdinalIgnoreCase))
         {
             collection.SetProviderId(TmdbCollectionKey, tmdbId);
+            collection.SetProviderId(TmdbKey, tmdbId);
             await collection.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        // The name, overview and images came from the wrong franchise: fetch them again from the right one.
+        if (wrongMetadata)
+        {
+            _logger.LogInformation(
+                "Collection {Name} had metadata from TMDb collection {WrongId}, refreshing from {TmdbId}",
+                collection.Name,
+                metadataId,
+                tmdbId);
+            _providerManager.QueueRefresh(
+                collection.Id,
+                new MetadataRefreshOptions(new DirectoryService(_fileSystem))
+                {
+                    MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
+                    ImageRefreshMode = MetadataRefreshMode.FullRefresh,
+                    ReplaceAllMetadata = true,
+                    ReplaceAllImages = true
+                },
+                RefreshPriority.High);
         }
 
         return toAdd.Count > 0 || toRemove.Count > 0;

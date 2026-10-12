@@ -50,7 +50,8 @@
                             <span>Sync and override</span>
                         </button>
                         <div class="fieldDescription">Makes every franchise collection match TMDb exactly. Movies and other items you added by hand
-                            are removed, and a collection with the same name as a franchise is taken over. Collections that aren't
+                            are removed, a collection with the same name as a franchise is taken over, and duplicate collections
+                            of the same franchise are deleted (the movies are kept). Collections that aren't
                             franchises and excluded franchises are not touched.</div>
                     </div>
                 </form>
@@ -139,7 +140,7 @@
 
             document.querySelector('#RunOverride')
                 .addEventListener('click', function () {
-                    if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed.')) {
+                    if (!window.confirm('Make every franchise collection match TMDb exactly? Anything you added to these collections by hand will be removed, and duplicate franchise collections will be deleted.')) {
                         return;
                     }
                     startFranchiseTask(FranchiseCollectionsConfig.overrideTaskKey,
