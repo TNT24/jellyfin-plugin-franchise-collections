@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.3.12",
+                             "changelog":  "Turns on automatic updates for the plugin. Includes the 1.0.2 fixes for wrongly named collections and duplicate collections.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.3/franchise-collections_1.0.3.12_jellyfin-12.zip",
+                             "checksum":  "ec80afd3d009e85a093ed9e1f7071bc1",
+                             "timestamp":  "2026-10-12T21:05:01Z"
+                         },
+                         {
+                             "version":  "1.0.3.11",
+                             "changelog":  "Turns on automatic updates for the plugin. Includes the 1.0.2 fixes for wrongly named collections and duplicate collections.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.3/franchise-collections_1.0.3.11_jellyfin-10.11.zip",
+                             "checksum":  "25f94fe0a3951c533eccb1b902d4ea07",
+                             "timestamp":  "2026-10-12T21:05:01Z"
+                         },
+                         {
                              "version":  "1.0.2.12",
                              "changelog":  "Fixes collections getting the name and artwork of a similarly named franchise (e.g. RED as Red Ryder). Sync and override now deletes duplicate franchise collections.",
                              "targetAbi":  "12.0.0.0",
