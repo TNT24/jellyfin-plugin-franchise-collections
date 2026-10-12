@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.8.12",
+                             "changelog":  "Fills in the description and poster of franchise collections that have none, such as collections adopted from ones you made yourself.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.8/franchise-collections_1.0.8.12_jellyfin-12.zip",
+                             "checksum":  "31ec2f2694c1e9e88e79463a9e5cdb16",
+                             "timestamp":  "2026-10-12T22:30:53Z"
+                         },
+                         {
+                             "version":  "1.0.8.11",
+                             "changelog":  "Fills in the description and poster of franchise collections that have none, such as collections adopted from ones you made yourself.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.8/franchise-collections_1.0.8.11_jellyfin-10.11.zip",
+                             "checksum":  "eb6f6783235b44474e58f24cf84798f3",
+                             "timestamp":  "2026-10-12T22:30:53Z"
+                         },
+                         {
                              "version":  "1.0.7.12",
                              "changelog":  "New settings: movie order inside franchise collections (release date by default), and optional collection posters built from the posters of the movies in each collection.",
                              "targetAbi":  "12.0.0.0",

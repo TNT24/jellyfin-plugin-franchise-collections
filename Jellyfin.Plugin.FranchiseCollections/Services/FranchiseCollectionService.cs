@@ -452,6 +452,21 @@ public class FranchiseCollectionService
                 },
                 RefreshPriority.High);
         }
+        else if (string.IsNullOrWhiteSpace(metadataId)
+            || (string.IsNullOrWhiteSpace(collection.Overview) && !collection.HasImage(ImageType.Primary)))
+        {
+            // A taken-over collection (hand-made, or tagged before it had a "Tmdb" id) never had TMDb metadata
+            // fetched, so it has no overview or poster. Fill in only what's missing, keeping anything already set.
+            _logger.LogInformation("Collection {Name} is missing TMDb metadata, fetching it", collection.Name);
+            _providerManager.QueueRefresh(
+                collection.Id,
+                new MetadataRefreshOptions(new DirectoryService(_fileSystem))
+                {
+                    MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
+                    ImageRefreshMode = MetadataRefreshMode.FullRefresh
+                },
+                RefreshPriority.High);
+        }
 
         return toAdd.Count > 0 || toRemove.Count > 0;
     }
