@@ -101,15 +101,13 @@ public class FranchiseCollectionService
         var excluded = ParseExcluded(config.ExcludedFranchises);
         var libraryIds = ParseLibraryIds(config.LibraryIds);
 
-        var franchises = _libraryManager.GetItemList(new InternalItemsQuery
-            {
-                IncludeItemTypes = [BaseItemKind.Movie],
-                Recursive = true,
-                IsVirtualItem = false
-            })
-            .OfType<Movie>()
-            .Where(movie => libraryIds.Count == 0
-                || _libraryManager.GetCollectionFolders(movie).Any(library => libraryIds.Contains(library.Id)))
+        var allMovies = GetMovies(libraryIds);
+
+        // With a library filter, collections are only deleted or trimmed when every member is in those libraries,
+        // so movies (and collections) from the other libraries are never touched. Null means no filter.
+        var scopeMovieIds = libraryIds.Count == 0 ? null : allMovies.Select(m => m.Id).ToHashSet();
+
+        var franchises = allMovies
             .Select(movie => (Movie: movie, TmdbId: movie.GetProviderId(TmdbCollectionKey)))
             .Where(x => !string.IsNullOrWhiteSpace(x.TmdbId))
             .GroupBy(x => x.TmdbId!, x => x.Movie, StringComparer.OrdinalIgnoreCase)
@@ -169,7 +167,8 @@ public class FranchiseCollectionService
                     // Same name but a different franchise id: leave it alone, unless overriding and no franchise
                     // in the library owns that id (then it's a hand-made or mis-tagged collection we can take over).
                     var otherId = GetFranchiseId(collection);
-                    if (otherId is not null && (!overrideManualChanges || franchiseIds.Contains(otherId)))
+                    if (otherId is not null
+                        && (!overrideManualChanges || franchiseIds.Contains(otherId) || !IsInScope(collection, scopeMovieIds)))
                     {
                         collection = null;
                     }
@@ -200,14 +199,30 @@ public class FranchiseCollectionService
                     created++;
                     await ApplyDisplaySettingsAsync(newCollection, movies, config, isNew: true, cancellationToken).ConfigureAwait(false);
                 }
+                else if (collection.IsLocked)
+                {
+                    // Locked means the user wants it exactly as it is: no members added or removed, never deleted.
+                    _logger.LogInformation("Collection {Name} is locked, leaving it as it is", collection.Name);
+                    if (string.IsNullOrWhiteSpace(collection.Overview))
+                    {
+                        _logger.LogWarning(
+                            "Collection {Name} has no description but is locked, so Jellyfin won't fetch it. Untick \"Lock this item\" in its metadata editor to allow it",
+                            collection.Name);
+                    }
+
+                    if (overrideManualChanges)
+                    {
+                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds);
+                    }
+                }
                 else
                 {
                     if (overrideManualChanges)
                     {
-                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName);
+                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds);
 
                         // Only creation checks the minimum, so an adopted or older collection can be left with fewer movies.
-                        if (movies.Count < minimumMovies)
+                        if (movies.Count < minimumMovies && IsInScope(collection, scopeMovieIds))
                         {
                             _logger.LogInformation(
                                 "Deleting collection {Name}: it has {Count} movies, fewer than the minimum of {Minimum}",
@@ -227,7 +242,7 @@ public class FranchiseCollectionService
                         }
                     }
 
-                    if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges).ConfigureAwait(false))
+                    if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges, scopeMovieIds).ConfigureAwait(false))
                     {
                         updated++;
                     }
@@ -246,7 +261,7 @@ public class FranchiseCollectionService
         var handMadeDeleted = 0;
         if (overrideManualChanges)
         {
-            handMadeDeleted = DeleteUnmanagedCollections(existingCollections, excluded, franchises.Count, cancellationToken);
+            handMadeDeleted = DeleteUnmanagedCollections(existingCollections, excluded, franchises.Count, scopeMovieIds, cancellationToken);
         }
 
         progress.Report(100);
@@ -260,7 +275,8 @@ public class FranchiseCollectionService
     }
 
     /// <summary>
-    /// Deletes every collection this plugin doesn't manage (no TMDb collection id), except excluded names.
+    /// Deletes every collection this plugin doesn't manage (no TMDb collection id), except excluded names,
+    /// locked collections and, with a library filter, collections holding movies from other libraries.
     /// Same-named collections were already taken over and tagged by the franchise loop, so they're kept.
     /// The movies themselves are not touched.
     /// </summary>
@@ -268,6 +284,7 @@ public class FranchiseCollectionService
         List<BoxSet> collections,
         HashSet<string> excluded,
         int franchiseCount,
+        HashSet<Guid>? scopeMovieIds,
         CancellationToken cancellationToken)
     {
         // No franchises usually means missing metadata or no matching library, not that every collection should go.
@@ -280,6 +297,7 @@ public class FranchiseCollectionService
         var unmanaged = collections
             .Where(c => string.IsNullOrWhiteSpace(c.GetProviderId(TmdbCollectionKey)))
             .Where(c => string.IsNullOrWhiteSpace(c.Name) || !excluded.Contains(c.Name))
+            .Where(c => !c.IsLocked && IsInScope(c, scopeMovieIds))
             .ToList();
 
         var count = 0;
@@ -304,6 +322,7 @@ public class FranchiseCollectionService
 
     /// <summary>
     /// Deletes the other collections of a franchise: those tagged with its TMDb id, and untagged ones with its name.
+    /// Locked collections and, with a library filter, collections holding movies from other libraries are kept.
     /// The movies themselves are not touched.
     /// </summary>
     private int DeleteDuplicateCollections(
@@ -312,10 +331,11 @@ public class FranchiseCollectionService
         string? name,
         List<BoxSet> collections,
         Dictionary<string, BoxSet> collectionsByTmdbId,
-        Dictionary<string, BoxSet> collectionsByName)
+        Dictionary<string, BoxSet> collectionsByName,
+        HashSet<Guid>? scopeMovieIds)
     {
         var duplicates = collections
-            .Where(c => c.Id != keep.Id)
+            .Where(c => c.Id != keep.Id && !c.IsLocked && IsInScope(c, scopeMovieIds))
             .Where(c => GetFranchiseId(c) is { } id
                 ? string.Equals(id, tmdbId, StringComparison.OrdinalIgnoreCase)
                 : name is not null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
@@ -415,7 +435,8 @@ public class FranchiseCollectionService
         string tmdbId,
         IReadOnlyList<Movie> movies,
         bool removeStale,
-        bool overrideManualChanges)
+        bool overrideManualChanges,
+        HashSet<Guid>? scopeMovieIds)
     {
         var members = collection.GetLinkedChildrenInfos()
             .Select(info => info.Item2)
@@ -427,9 +448,13 @@ public class FranchiseCollectionService
         var toAdd = movies.Where(m => !memberIds.Contains(m.Id)).Select(m => m.Id).ToList();
 
         // Normally only remove movies that TMDb now places in a *different* franchise, so hand-added extras
-        // (spin-offs, specials without TMDb collection data) are left untouched. Overriding removes them too.
+        // (spin-offs, specials without TMDb collection data) are left untouched. Overriding removes them too,
+        // except movies from libraries outside the library filter, which this sync can't see.
         var toRemove = overrideManualChanges
-            ? members.Where(item => !movieIds.Contains(item.Id)).Select(item => item.Id).ToList()
+            ? members
+                .Where(item => !movieIds.Contains(item.Id) && (scopeMovieIds is null || scopeMovieIds.Contains(item.Id)))
+                .Select(item => item.Id)
+                .ToList()
             : removeStale
             ? members
                 .OfType<Movie>()
@@ -486,16 +511,6 @@ public class FranchiseCollectionService
                 },
                 RefreshPriority.High);
         }
-        else if (collection.IsLocked)
-        {
-            // Jellyfin skips every metadata refresh on a locked item, so asking for one would never fill anything in.
-            if (string.IsNullOrWhiteSpace(collection.Overview))
-            {
-                _logger.LogWarning(
-                    "Collection {Name} has no description but is locked, so Jellyfin won't fetch it. Untick \"Lock this item\" in its metadata editor to allow it",
-                    collection.Name);
-            }
-        }
         else if (string.IsNullOrWhiteSpace(metadataId)
             || string.IsNullOrWhiteSpace(collection.Overview)
             || !collection.HasImage(ImageType.Primary))
@@ -515,6 +530,61 @@ public class FranchiseCollectionService
         }
 
         return toAdd.Count > 0 || toRemove.Count > 0;
+    }
+
+    /// <summary>
+    /// Loads the non-virtual movies of the selected libraries (every library when none are selected).
+    /// Querying each library by parent lets the server filter them, instead of looking up every movie's library.
+    /// </summary>
+    private List<Movie> GetMovies(HashSet<Guid> libraryIds)
+    {
+        if (libraryIds.Count == 0)
+        {
+            return _libraryManager.GetItemList(MovieQuery(Guid.Empty)).OfType<Movie>().ToList();
+        }
+
+        var movies = new List<Movie>();
+        var seen = new HashSet<Guid>();
+        foreach (var libraryId in libraryIds)
+        {
+            // A library that was removed since the settings were saved would make the query throw.
+            if (_libraryManager.GetItemById(libraryId) is null)
+            {
+                _logger.LogWarning("Library {LibraryId} in the settings no longer exists, skipping it", libraryId);
+                continue;
+            }
+
+            movies.AddRange(_libraryManager.GetItemList(MovieQuery(libraryId)).OfType<Movie>().Where(m => seen.Add(m.Id)));
+        }
+
+        return movies;
+    }
+
+    private static InternalItemsQuery MovieQuery(Guid parentId) => new()
+    {
+        IncludeItemTypes = [BaseItemKind.Movie],
+        Recursive = true,
+        IsVirtualItem = false,
+        ParentId = parentId
+    };
+
+    /// <summary>
+    /// Whether the sync may delete or trim this collection: always without a library filter, otherwise only when
+    /// it has members and all of them are in the selected libraries.
+    /// </summary>
+    private static bool IsInScope(BoxSet collection, HashSet<Guid>? scopeMovieIds)
+    {
+        if (scopeMovieIds is null)
+        {
+            return true;
+        }
+
+        var memberIds = collection.GetLinkedChildrenInfos()
+            .Select(info => info.Item2)
+            .Where(item => item is not null)
+            .Select(item => item.Id)
+            .ToList();
+        return memberIds.Count > 0 && memberIds.All(scopeMovieIds.Contains);
     }
 
     private static HashSet<Guid> ParseLibraryIds(string[]? ids)

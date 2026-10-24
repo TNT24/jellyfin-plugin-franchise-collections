@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.0.11.12",
+                             "changelog":  "Locked collections are never changed or deleted, and with libraries ticked, Sync and override leaves collections and movies from other libraries alone. Syncs with a library filter are faster.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.11/franchise-collections_1.0.11.12_jellyfin-12.zip",
+                             "checksum":  "acbdc8a720eae7d491ba728fb90ec29f",
+                             "timestamp":  "2026-10-24T17:04:38Z"
+                         },
+                         {
+                             "version":  "1.0.11.11",
+                             "changelog":  "Locked collections are never changed or deleted, and with libraries ticked, Sync and override leaves collections and movies from other libraries alone. Syncs with a library filter are faster.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.0.11/franchise-collections_1.0.11.11_jellyfin-10.11.zip",
+                             "checksum":  "04ab359738ceb0596d3495511f6e7df6",
+                             "timestamp":  "2026-10-24T17:04:38Z"
+                         },
+                         {
                              "version":  "1.0.10.12",
                              "changelog":  "Locked collections get a clear warning in the log and are left alone, and a generated poster no longer hides a missing description.",
                              "targetAbi":  "12.0.0.0",
