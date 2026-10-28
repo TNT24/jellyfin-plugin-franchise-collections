@@ -9,6 +9,22 @@
         "imageUrl":  "https://raw.githubusercontent.com/TNT24/jellyfin-plugin-franchise-collections/main/images/logo.png",
         "versions":  [
                          {
+                             "version":  "1.1.0.12",
+                             "changelog":  "Optional Discord notifications: each sync that creates, fills or deletes collections posts a summary to a Discord channel.",
+                             "targetAbi":  "12.0.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.1.0/franchise-collections_1.1.0.12_jellyfin-12.zip",
+                             "checksum":  "88b575cdb4ed402543402ca896377480",
+                             "timestamp":  "2026-10-28T22:21:20Z"
+                         },
+                         {
+                             "version":  "1.1.0.11",
+                             "changelog":  "Optional Discord notifications: each sync that creates, fills or deletes collections posts a summary to a Discord channel.",
+                             "targetAbi":  "10.11.0.0",
+                             "sourceUrl":  "https://github.com/TNT24/jellyfin-plugin-franchise-collections/releases/download/v1.1.0/franchise-collections_1.1.0.11_jellyfin-10.11.zip",
+                             "checksum":  "a95b381927401de6ce231c19567aaa56",
+                             "timestamp":  "2026-10-28T22:21:20Z"
+                         },
+                         {
                              "version":  "1.0.11.12",
                              "changelog":  "Locked collections are never changed or deleted, and with libraries ticked, Sync and override leaves collections and movies from other libraries alone. Syncs with a library filter are faster.",
                              "targetAbi":  "12.0.0.0",
