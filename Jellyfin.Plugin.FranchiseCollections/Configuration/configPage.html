@@ -18,7 +18,9 @@
             #FranchiseCollectionsConfigPage .fc-textarea { width: 100%; box-sizing: border-box; min-height: 8em; resize: vertical; padding: 0.5em; font-family: inherit; }
             #FranchiseCollectionsConfigPage .fc-label { display: block; margin-bottom: 0.4em; }
             #FranchiseCollectionsConfigPage .fc-status { margin: -1.2em 0 2em; opacity: 0.7; font-size: 0.9em; }
-            #FranchiseCollectionsConfigPage .fc-status.fc-error { color: #e9a23b; opacity: 1; }
+            #FranchiseCollectionsConfigPage .fc-status.fc-error,
+            #FranchiseCollectionsConfigPage #DiscordStatus.fc-error { color: #e9a23b; opacity: 1; }
+            #FranchiseCollectionsConfigPage #TestDiscord { margin: 0; }
             #FranchiseCollectionsConfigPage .fc-actions { display: flex; flex-wrap: wrap; gap: 1em; }
             #FranchiseCollectionsConfigPage .fc-action { flex: 1 1 18em; }
             #FranchiseCollectionsConfigPage .fc-action .emby-button { width: 100%; margin: 0; }
@@ -81,6 +83,30 @@
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">Movies you added to a collection by hand are never removed.</div>
                         </div>
+                    </div>
+
+                    <div class="fc-section">
+                        <h3>Discord notifications</h3>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="url" id="DiscordWebhookUrl" autocomplete="off" label="Webhook URL" placeholder="https://discord.com/api/webhooks/…" />
+                            <div class="fieldDescription">Posts a message after each sync that creates, changes or deletes collections. In Discord: channel settings →
+                                Integrations → Webhooks → New Webhook → Copy Webhook URL. Leave blank to turn notifications off.</div>
+                            <div id="DiscordStatus" class="fieldDescription"></div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="NotifyAddedMovies" />
+                                <span>Also post movies added to existing collections</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">Untick to only hear about new and deleted collections.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="url" id="PublicServerUrl" autocomplete="off" label="Server address for links (optional)" placeholder="https://jellyfin.example.com" />
+                            <div class="fieldDescription">When set, each collection in a message links to its page in Jellyfin, and a single new collection shows its poster.</div>
+                        </div>
+                        <button is="emby-button" type="button" id="TestDiscord" class="raised emby-button">
+                            <span>Send test message</span>
+                        </button>
                     </div>
 
                     <div class="fc-section">
@@ -183,6 +209,9 @@
                     config.ExcludedFranchises = page.querySelector('#ExcludedFranchises').value;
                     config.CollectionSortOrder = page.querySelector('#CollectionSortOrder').value;
                     config.GeneratedPosters = page.querySelector('#GeneratedPosters').value;
+                    config.DiscordWebhookUrl = page.querySelector('#DiscordWebhookUrl').value.trim();
+                    config.NotifyAddedMovies = page.querySelector('#NotifyAddedMovies').checked;
+                    config.PublicServerUrl = page.querySelector('#PublicServerUrl').value.trim();
                     return ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config);
                 }).then(function () {
                     setStatus('Saved.');
@@ -223,6 +252,23 @@
                 });
             }
 
+            function setDiscordStatus(text, isError) {
+                var status = franchisePage().querySelector('#DiscordStatus');
+                status.textContent = text;
+                status.classList.toggle('fc-error', !!isError);
+            }
+
+            function updateDiscordStatus() {
+                var url = franchisePage().querySelector('#DiscordWebhookUrl').value.trim();
+                if (!url) {
+                    setDiscordStatus('Discord notifications are off.');
+                } else if (/^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\//.test(url)) {
+                    setDiscordStatus('✓ Discord notifications are on.');
+                } else {
+                    setDiscordStatus('That doesn\'t look like a Discord webhook URL. It should start with https://discord.com/api/webhooks/', true);
+                }
+            }
+
             franchisePage().addEventListener('pageshow', function () {
                 var page = franchisePage();
                 franchiseLoaded = false;
@@ -239,6 +285,10 @@
                     page.querySelector('#ExcludedFranchises').value = config.ExcludedFranchises || '';
                     page.querySelector('#CollectionSortOrder').value = config.CollectionSortOrder || 'PremiereDate';
                     page.querySelector('#GeneratedPosters').value = config.GeneratedPosters || 'Off';
+                    page.querySelector('#DiscordWebhookUrl').value = config.DiscordWebhookUrl || '';
+                    page.querySelector('#NotifyAddedMovies').checked = config.NotifyAddedMovies;
+                    page.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
+                    updateDiscordStatus();
                     setStatus('Changes are saved automatically.');
                     franchiseLoaded = true;
                     Dashboard.hideLoadingMsg();
@@ -258,6 +308,21 @@
                 if (e.target.type !== 'checkbox') {
                     scheduleSave(800);
                 }
+                if (e.target.id === 'DiscordWebhookUrl') {
+                    updateDiscordStatus();
+                }
+            });
+
+            // Saves first, so the test uses the address on screen.
+            franchisePage().querySelector('#TestDiscord').addEventListener('click', function () {
+                setDiscordStatus('Saving and sending…');
+                saveConfig().then(function () {
+                    return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('FranchiseCollections/TestDiscord'), dataType: 'json' });
+                }).then(function (r) {
+                    setDiscordStatus((r.Ok ? '✓ ' : '✗ ') + r.Message, !r.Ok);
+                }, function () {
+                    setDiscordStatus('✗ Could not send the test message.', true);
+                });
             });
             franchisePage().querySelector('#FranchiseCollectionsConfigForm').addEventListener('submit', function (e) {
                 e.preventDefault();

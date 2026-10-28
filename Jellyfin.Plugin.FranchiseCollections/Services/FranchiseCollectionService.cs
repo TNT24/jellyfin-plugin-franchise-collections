@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.FranchiseCollections.Configuration;
+using Jellyfin.Plugin.FranchiseCollections.Notifications;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -32,6 +33,7 @@ public class FranchiseCollectionService
     private readonly IProviderManager _providerManager;
     private readonly IFileSystem _fileSystem;
     private readonly CollectionPosterGenerator _posterGenerator;
+    private readonly SyncNotifier _notifier;
     private readonly ILogger<FranchiseCollectionService> _logger;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
@@ -46,6 +48,7 @@ public class FranchiseCollectionService
     /// <param name="providerManager">Provider manager.</param>
     /// <param name="fileSystem">File system.</param>
     /// <param name="posterGenerator">Collection poster generator.</param>
+    /// <param name="notifier">Discord notifications.</param>
     /// <param name="logger">Logger.</param>
     public FranchiseCollectionService(
         ILibraryManager libraryManager,
@@ -53,6 +56,7 @@ public class FranchiseCollectionService
         IProviderManager providerManager,
         IFileSystem fileSystem,
         CollectionPosterGenerator posterGenerator,
+        SyncNotifier notifier,
         ILogger<FranchiseCollectionService> logger)
     {
         _libraryManager = libraryManager;
@@ -60,6 +64,7 @@ public class FranchiseCollectionService
         _providerManager = providerManager;
         _fileSystem = fileSystem;
         _posterGenerator = posterGenerator;
+        _notifier = notifier;
         _logger = logger;
     }
 
@@ -145,6 +150,7 @@ public class FranchiseCollectionService
             overrideManualChanges ? ", overriding manual changes" : string.Empty);
 
         int created = 0, updated = 0, deleted = 0, belowMinimumDeleted = 0;
+        var report = new SyncReport();
         for (var i = 0; i < franchises.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -197,6 +203,7 @@ public class FranchiseCollectionService
                     collectionsByTmdbId.TryAdd(tmdbId, newCollection);
                     collectionsByName.TryAdd(createName, newCollection);
                     created++;
+                    report.Created.Add(new CollectionChange(newCollection.Id, createName, Titles(movies)));
                     await ApplyDisplaySettingsAsync(newCollection, movies, config, isNew: true, cancellationToken).ConfigureAwait(false);
                 }
                 else if (collection.IsLocked)
@@ -212,14 +219,14 @@ public class FranchiseCollectionService
 
                     if (overrideManualChanges)
                     {
-                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds);
+                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds, report);
                     }
                 }
                 else
                 {
                     if (overrideManualChanges)
                     {
-                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds);
+                        deleted += DeleteDuplicateCollections(collection, tmdbId, name, existingCollections, collectionsByTmdbId, collectionsByName, scopeMovieIds, report);
 
                         // Only creation checks the minimum, so an adopted or older collection can be left with fewer movies.
                         if (movies.Count < minimumMovies && IsInScope(collection, scopeMovieIds))
@@ -238,11 +245,12 @@ public class FranchiseCollectionService
                             }
 
                             belowMinimumDeleted++;
+                            report.Deleted.Add(collection.Name ?? tmdbId);
                             continue;
                         }
                     }
 
-                    if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges, scopeMovieIds).ConfigureAwait(false))
+                    if (await UpdateCollectionAsync(collection, tmdbId, movies, config.RemoveStaleMovies, overrideManualChanges, scopeMovieIds, report).ConfigureAwait(false))
                     {
                         updated++;
                     }
@@ -261,7 +269,7 @@ public class FranchiseCollectionService
         var handMadeDeleted = 0;
         if (overrideManualChanges)
         {
-            handMadeDeleted = DeleteUnmanagedCollections(existingCollections, excluded, franchises.Count, scopeMovieIds, cancellationToken);
+            handMadeDeleted = DeleteUnmanagedCollections(existingCollections, excluded, franchises.Count, scopeMovieIds, report, cancellationToken);
         }
 
         progress.Report(100);
@@ -272,6 +280,8 @@ public class FranchiseCollectionService
             deleted,
             belowMinimumDeleted,
             handMadeDeleted);
+
+        await _notifier.SyncFinishedAsync(report, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -285,6 +295,7 @@ public class FranchiseCollectionService
         HashSet<string> excluded,
         int franchiseCount,
         HashSet<Guid>? scopeMovieIds,
+        SyncReport report,
         CancellationToken cancellationToken)
     {
         // No franchises usually means missing metadata or no matching library, not that every collection should go.
@@ -310,6 +321,7 @@ public class FranchiseCollectionService
                 _libraryManager.DeleteItem(collection, new DeleteOptions { DeleteFileLocation = true });
                 collections.Remove(collection);
                 count++;
+                report.Deleted.Add(collection.Name ?? string.Empty);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -332,7 +344,8 @@ public class FranchiseCollectionService
         List<BoxSet> collections,
         Dictionary<string, BoxSet> collectionsByTmdbId,
         Dictionary<string, BoxSet> collectionsByName,
-        HashSet<Guid>? scopeMovieIds)
+        HashSet<Guid>? scopeMovieIds,
+        SyncReport report)
     {
         var duplicates = collections
             .Where(c => c.Id != keep.Id && !c.IsLocked && IsInScope(c, scopeMovieIds))
@@ -346,6 +359,7 @@ public class FranchiseCollectionService
             _logger.LogInformation("Deleting duplicate collection {Name} (keeping {Kept})", duplicate.Name, keep.Name);
             _libraryManager.DeleteItem(duplicate, new DeleteOptions { DeleteFileLocation = true });
             collections.Remove(duplicate);
+            report.Deleted.Add((duplicate.Name ?? tmdbId) + " (duplicate)");
 
             if (!string.IsNullOrWhiteSpace(duplicate.Name)
                 && collectionsByName.TryGetValue(duplicate.Name, out var named)
@@ -436,7 +450,8 @@ public class FranchiseCollectionService
         IReadOnlyList<Movie> movies,
         bool removeStale,
         bool overrideManualChanges,
-        HashSet<Guid>? scopeMovieIds)
+        HashSet<Guid>? scopeMovieIds,
+        SyncReport report)
     {
         var members = collection.GetLinkedChildrenInfos()
             .Select(info => info.Item2)
@@ -471,6 +486,7 @@ public class FranchiseCollectionService
         {
             _logger.LogInformation("Adding {Count} movies to collection {Name}", toAdd.Count, collection.Name);
             await _collectionManager.AddToCollectionAsync(collection.Id, toAdd).ConfigureAwait(false);
+            report.Added.Add(new CollectionChange(collection.Id, collection.Name ?? tmdbId, Titles(movies.Where(m => toAdd.Contains(m.Id)))));
         }
 
         if (toRemove.Count > 0)
@@ -559,6 +575,13 @@ public class FranchiseCollectionService
 
         return movies;
     }
+
+    /// <summary>Movie titles for Discord, oldest first, e.g. "The Matrix (1999)".</summary>
+    private static List<string> Titles(IEnumerable<Movie> movies)
+        => movies
+            .OrderBy(m => m.PremiereDate ?? DateTime.MaxValue)
+            .Select(m => m.ProductionYear is int year ? string.Format(CultureInfo.InvariantCulture, "{0} ({1})", m.Name, year) : m.Name)
+            .ToList();
 
     private static InternalItemsQuery MovieQuery(Guid parentId) => new()
     {

@@ -21,6 +21,7 @@ using the franchise ("collection") data that Jellyfin's built-in TMDb metadata p
 - Movies you added to a collection by hand are never removed. With "Remove stale movies" turned on, a movie is removed only when TMDb now lists it under a *different* franchise.
 - **Sync and override** on the settings page makes every franchise collection match TMDb exactly, once. It removes anything you added by hand, takes over a collection that has a franchise's name but a different or stale TMDb ID, deletes franchise collections below the minimum, and **deletes every collection that isn't a franchise**, including ones you made yourself (the movies are kept). Excluded franchises and locked collections are never touched. With libraries ticked, collections holding movies from other libraries, and those movies, are left alone.
 - **Locked collections** ("Lock this item" in the metadata editor) are left exactly as they are by every sync: no movies added or removed, no new order or poster, never deleted.
+- **Discord notifications** (optional): add a webhook URL in the settings and every sync that creates, fills or deletes collections posts a summary. Syncs that change nothing stay quiet.
 
 ## Build
 

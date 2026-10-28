@@ -7,7 +7,11 @@ Notes for working on the Franchise Collections plugin. For what it does and how 
 | File | Role |
 |---|---|
 | `Plugin.cs` | Plugin entry point: name, GUID, settings page registration. |
-| `PluginServiceRegistrator.cs` | Registers `FranchiseCollectionService` and `CollectionPosterGenerator` (singletons) and `LibraryChangeListener` (hosted service). |
+| `PluginServiceRegistrator.cs` | Registers `FranchiseCollectionService`, `CollectionPosterGenerator`, `DiscordNotifier` and `SyncNotifier` (singletons) and `LibraryChangeListener` (hosted service). |
+| `Notifications/DiscordMessageBuilder.cs` | Turns a sync's `SyncReport` (collections created, movies added, collections deleted) into one Discord webhook message. No network access. |
+| `Notifications/DiscordNotifier.cs` | Posts to a Discord webhook: only accepts discord.com webhook URLs and waits out rate limits. |
+| `Notifications/SyncNotifier.cs` | Called at the end of every sync. Posts the report when a webhook is set and something changed; failures are only logged. |
+| `Api/FranchiseCollectionsController.cs` | `POST /FranchiseCollections/TestDiscord` for the settings page's test button (admins only). |
 | `Services/FranchiseCollectionService.cs` | The sync logic. Everything that reads or changes collections lives here. |
 | `Services/CollectionPosterGenerator.cs` | Builds collection posters from the movies' posters with Jellyfin's `IImageEncoder.CreateImageCollage`. |
 | `Services/LibraryChangeListener.cs` | Listens for movie add/update events and queues the scheduled task after a quiet period. |

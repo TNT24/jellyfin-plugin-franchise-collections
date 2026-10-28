@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.FranchiseCollections.Notifications;
 using Jellyfin.Plugin.FranchiseCollections.Services;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -13,6 +14,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     /// <inheritdoc />
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
+        serviceCollection.AddSingleton<DiscordNotifier>();
+        serviceCollection.AddSingleton<SyncNotifier>();
         serviceCollection.AddSingleton<CollectionPosterGenerator>();
         serviceCollection.AddSingleton<FranchiseCollectionService>();
         serviceCollection.AddHostedService<LibraryChangeListener>();

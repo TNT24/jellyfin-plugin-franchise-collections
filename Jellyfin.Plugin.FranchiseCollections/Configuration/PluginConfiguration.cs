@@ -43,4 +43,21 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets franchise names (one per line) that should never get a collection.
     /// </summary>
     public string ExcludedFranchises { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Discord webhook URL. Empty turns Discord notifications off.
+    /// </summary>
+    public string DiscordWebhookUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether Discord also hears about movies added to existing collections,
+    /// not just new and deleted collections.
+    /// </summary>
+    public bool NotifyAddedMovies { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the address Discord can reach the server on (e.g. https://jellyfin.example.com).
+    /// When set, notifications link to each collection. Empty leaves the links out.
+    /// </summary>
+    public string PublicServerUrl { get; set; } = string.Empty;
 }
