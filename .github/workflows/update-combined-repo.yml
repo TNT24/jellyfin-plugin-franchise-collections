@@ -1,0 +1,30 @@
+name: Update combined repository
+
+# When this plugin's manifest.json changes (a new release), rebuild the combined TNT24 plugin repository
+# (github.com/TNT24/tnt24-jellyfin) straight away instead of waiting for its scheduled run, which GitHub
+# can delay by many hours.
+#
+# Needs the repository secret COMBINED_REPO_TOKEN: a fine-grained personal access token with access to
+# TNT24/tnt24-jellyfin only and the permission "Actions: Read and write".
+on:
+  push:
+    branches: [main]
+    paths: [manifest.json]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the combined repository's Update manifest workflow
+        env:
+          GH_TOKEN: ${{ secrets.COMBINED_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The COMBINED_REPO_TOKEN secret isn't set, so the combined repository wasn't updated. Run its Update manifest workflow by hand."
+            exit 1
+          fi
+          gh workflow run update-manifest.yml -R TNT24/tnt24-jellyfin
+          echo "Started Update manifest in TNT24/tnt24-jellyfin."
