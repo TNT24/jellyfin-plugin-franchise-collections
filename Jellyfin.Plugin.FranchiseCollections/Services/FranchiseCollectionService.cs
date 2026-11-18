@@ -203,7 +203,7 @@ public class FranchiseCollectionService
                     collectionsByTmdbId.TryAdd(tmdbId, newCollection);
                     collectionsByName.TryAdd(createName, newCollection);
                     created++;
-                    report.Created.Add(new CollectionChange(newCollection.Id, createName, Titles(movies)));
+                    report.Created.Add(Change(newCollection.Id, createName, movies));
                     await ApplyDisplaySettingsAsync(newCollection, movies, config, isNew: true, cancellationToken).ConfigureAwait(false);
                 }
                 else if (collection.IsLocked)
@@ -486,7 +486,7 @@ public class FranchiseCollectionService
         {
             _logger.LogInformation("Adding {Count} movies to collection {Name}", toAdd.Count, collection.Name);
             await _collectionManager.AddToCollectionAsync(collection.Id, toAdd).ConfigureAwait(false);
-            report.Added.Add(new CollectionChange(collection.Id, collection.Name ?? tmdbId, Titles(movies.Where(m => toAdd.Contains(m.Id)))));
+            report.Added.Add(Change(collection.Id, collection.Name ?? tmdbId, movies.Where(m => toAdd.Contains(m.Id))));
         }
 
         if (toRemove.Count > 0)
@@ -576,12 +576,16 @@ public class FranchiseCollectionService
         return movies;
     }
 
-    /// <summary>Movie titles for Discord, oldest first, e.g. "The Matrix (1999)".</summary>
-    private static List<string> Titles(IEnumerable<Movie> movies)
-        => movies
-            .OrderBy(m => m.PremiereDate ?? DateTime.MaxValue)
-            .Select(m => m.ProductionYear is int year ? string.Format(CultureInfo.InvariantCulture, "{0} ({1})", m.Name, year) : m.Name)
-            .ToList();
+    /// <summary>A collection's change for Discord: its movies oldest first, as "The Matrix (1999)", with their ids for posters.</summary>
+    private static CollectionChange Change(Guid collectionId, string name, IEnumerable<Movie> movies)
+    {
+        var ordered = movies.OrderBy(m => m.PremiereDate ?? DateTime.MaxValue).ToList();
+        return new CollectionChange(
+            collectionId,
+            name,
+            ordered.Select(m => m.ProductionYear is int year ? string.Format(CultureInfo.InvariantCulture, "{0} ({1})", m.Name, year) : m.Name).ToList(),
+            ordered.Select(m => m.Id).ToList());
+    }
 
     private static InternalItemsQuery MovieQuery(Guid parentId) => new()
     {

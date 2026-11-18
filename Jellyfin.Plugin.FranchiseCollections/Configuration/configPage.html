@@ -100,9 +100,16 @@
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">Untick to only hear about new and deleted collections.</div>
                         </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="DiscordImages" />
+                                <span>Include pictures</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">The message leads with the biggest change: a row of its movie posters and the collection's own poster. They're sent with the message, so Discord doesn't need to reach your server.</div>
+                        </div>
                         <div class="inputContainer">
                             <input is="emby-input" type="url" id="PublicServerUrl" autocomplete="off" label="Server address for links (optional)" placeholder="https://jellyfin.example.com" />
-                            <div class="fieldDescription">When set, each collection in a message links to its page in Jellyfin, and a single new collection shows its poster.</div>
+                            <div class="fieldDescription">When set, each collection in a message links to its page in Jellyfin.</div>
                         </div>
                         <button is="emby-button" type="button" id="TestDiscord" class="raised emby-button">
                             <span>Send test message</span>
@@ -211,6 +218,7 @@
                     config.GeneratedPosters = page.querySelector('#GeneratedPosters').value;
                     config.DiscordWebhookUrl = page.querySelector('#DiscordWebhookUrl').value.trim();
                     config.NotifyAddedMovies = page.querySelector('#NotifyAddedMovies').checked;
+                    config.DiscordImages = page.querySelector('#DiscordImages').checked;
                     config.PublicServerUrl = page.querySelector('#PublicServerUrl').value.trim();
                     return ApiClient.updatePluginConfiguration(FranchiseCollectionsConfig.pluginUniqueId, config);
                 }).then(function () {
@@ -287,6 +295,7 @@
                     page.querySelector('#GeneratedPosters').value = config.GeneratedPosters || 'Off';
                     page.querySelector('#DiscordWebhookUrl').value = config.DiscordWebhookUrl || '';
                     page.querySelector('#NotifyAddedMovies').checked = config.NotifyAddedMovies;
+                    page.querySelector('#DiscordImages').checked = config.DiscordImages !== false;
                     page.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
                     updateDiscordStatus();
                     setStatus('Changes are saved automatically.');

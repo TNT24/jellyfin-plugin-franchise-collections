@@ -56,6 +56,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool NotifyAddedMovies { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether Discord messages include pictures: the main collection's movie
+    /// posters and its own poster, uploaded with the message (so no server address is needed for them).
+    /// </summary>
+    public bool DiscordImages { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the address Discord can reach the server on (e.g. https://jellyfin.example.com).
     /// When set, notifications link to each collection. Empty leaves the links out.
     /// </summary>

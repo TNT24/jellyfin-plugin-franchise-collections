@@ -4,8 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 # Each Jellyfin line gets its own last version number (.12 / .11). A Jellyfin 12 server can also
 # install 10.11 builds, so equal version numbers would leave it to pick between the two builds.
-$baseVersion = '1.1.0'
-$changelog = 'Optional Discord notifications: each sync that creates, fills or deletes collections posts a summary to a Discord channel.'
+$baseVersion = '1.2.0'
+$changelog = 'Discord messages show pictures: the biggest change of a sync leads with a row of its movie posters and the collection poster, with the rest of the sync listed underneath. Pictures are sent with the message, so Discord does not need to reach your server. Turn them off under Discord notifications, Include pictures.'
 $repo = 'TNT24/jellyfin-plugin-franchise-collections'
 $project = Join-Path $PSScriptRoot 'Jellyfin.Plugin.FranchiseCollections'
 $artifacts = Join-Path $PSScriptRoot 'artifacts'
